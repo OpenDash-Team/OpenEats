@@ -77,6 +77,30 @@ The application will be available at:
 http://127.0.0.1:8000
 ```
 
+## Running the Web UI
+
+Go into the frontend directory:
+```bash
+cd frontend
+```
+
+Install the packages:
+```bash
+npm i
+```
+
+Run the Web UI in development mode:
+```bash
+npm run dev
+```
+
+The web UI will be available at:
+
+```
+http://localhost:5173/
+```
+
+
 ## API Endpoints
 
 The API provides the following endpoints:
