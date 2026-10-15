@@ -21,3 +21,6 @@ class RestaurantService:
             )
             
         return restaurantsList
+
+    def get_restaurant_by_id(self, restaurant_id: str):
+        return self.repository.get_restaurant_by_id(restaurant_id)

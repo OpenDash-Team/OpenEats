@@ -21,7 +21,7 @@ def test_restaurants_endpoint_returns_valid_json(client):
         warnings.warn("This couldn't be tested correctly because there were no restaurants.")
 
 def test_restaurants_endpoint_with_name_query(client):
-    response = client.get("/restaurants?name=Startbucks")
+    response = client.get("/restaurants?name=Starbucks")
     assert response.status_code == 200, f"Failed! Server returned: {response.json()}"
     data = response.json()
     

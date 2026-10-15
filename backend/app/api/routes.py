@@ -27,3 +27,16 @@ def create_routes(app: FastAPI):
             raise HTTPException(status_code=500, detail="Restaurant data failed to due to invalid JSON")
         except ValueError:
             raise HTTPException(status_code=500, detail="Restaurant data failed to follow correct list[Restaurant] schema")
+
+
+    @app.get("/restaurant/{restaurant_id}", response_model=Restaurant)
+    def get_restaurant(restaurant_id: str):
+        restaurant_service = get_restaurant_service()
+    
+        try:
+            restaurant = restaurant_service.get_restaurant_by_id(restaurant_id)
+            if not restaurant:
+                raise HTTPException(status_code=404, detail="Restaurant not found")
+            return restaurant
+        except JSONDecodeError:
+            raise HTTPException(status_code=500, detail="Invalid JSON data")

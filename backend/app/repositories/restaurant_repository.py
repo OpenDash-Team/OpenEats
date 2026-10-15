@@ -26,3 +26,11 @@ class RestaurantRepository:
 
     def get_all_restaurants(self) -> list[Restaurant]:
         return self.__load_restaurants()
+
+    def get_restaurant_by_id(self, restaurant_id: str) -> Restaurant | None:
+        restaurants = self.get_all_restaurants()
+        
+        for restaurant in restaurants:
+            if restaurant.id == restaurant_id:
+                return restaurant
+        return None
