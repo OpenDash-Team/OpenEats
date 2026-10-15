@@ -25,8 +25,11 @@ class RestaurantRepository:
                 raise ValueError(f"{self.restaurants_file_path.absolute()} does not follow the correct list[Restaurant] schema. See backend/app/schemas/restaurant.py or visit https://www.schema.org/Restaurant for schema specifications.") from e
 
     def __save_restaurants(self, restaurants: list[Restaurant]) -> None:
-        with open(self.restaurants_file_path, "w", encoding="utf-8") as restaurants_file:
-            json.dump([restaurant.model_dump(mode="json") for restaurant in restaurants], restaurants_file, indent = 4)
+        try:
+            with open(self.restaurants_file_path, "w", encoding="utf-8") as restaurants_file:
+                json.dump([restaurant.model_dump(mode="json") for restaurant in restaurants], restaurants_file, indent = 4)
+        except OSError as e:
+            raise OSError(f"Failed to save restaurants to '{self.restaurants_file_path.absolute()}'") from e
 
     def get_all_restaurants(self) -> list[Restaurant]:
         return self.__load_restaurants()

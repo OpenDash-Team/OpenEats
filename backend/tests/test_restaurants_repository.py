@@ -83,3 +83,11 @@ def test_repository_saves_restaurants(tmp_path):
     assert len(reloaded) == len(restaurants)
     assert reloaded[0].id == restaurants[0].id
     assert reloaded[0].name == restaurants[0].name
+
+
+@patch("builtins.open", side_effect=PermissionError("Permission denied"))
+def test_repository_handles_save_error(mock_file, tmp_path):
+    repo = RestaurantRepository(tmp_path / "restaurants.json")
+
+    with pytest.raises(OSError, match="Failed to save restaurants"):
+        repo.save_restaurants([])
