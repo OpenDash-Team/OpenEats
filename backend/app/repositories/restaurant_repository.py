@@ -11,7 +11,7 @@ class RestaurantRepository:
     def __init__(self, restaurants_file_path: Path) -> None:
         self.restaurants_file_path: Path = restaurants_file_path
 
-    def __load_restaurants(self) -> list[Restaurant]: 
+    def __load_restaurants(self) -> list[Restaurant]:
         if not self.restaurants_file_path.exists():
             warnings.warn(f"'{self.restaurants_file_path.absolute()}' does not exist. Defaulting to empty restaurants list.")
             return []
@@ -24,5 +24,12 @@ class RestaurantRepository:
             except ValidationError as e:
                 raise ValueError(f"{self.restaurants_file_path.absolute()} does not follow the correct list[Restaurant] schema. See backend/app/schemas/restaurant.py or visit https://www.schema.org/Restaurant for schema specifications.") from e
 
+    def __save_restaurants(self, restaurants: list[Restaurant]) -> None:
+        with open(self.restaurants_file_path, "w", encoding="utf-8") as restaurants_file:
+            json.dump([restaurant.model_dump(mode="json") for restaurant in restaurants], restaurants_file, indent = 4)
+
     def get_all_restaurants(self) -> list[Restaurant]:
         return self.__load_restaurants()
+
+    def save_restaurants(self, restaurants: list[Restaurant]) -> None:
+        self.__save_restaurants(restaurants)
