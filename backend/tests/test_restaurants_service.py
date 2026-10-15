@@ -6,8 +6,6 @@ from backend.app.schemas.menu import Menu
 from backend.app.services.restaurant_service import RestaurantService
 @pytest.fixture
 def dummy_restaurants():
-    # .model_construct() creates the object without running any validation rules
-    # (If using Pydantic v1, use Menu.construct() instead)
     menu = Menu.model_construct()
     
     return [
