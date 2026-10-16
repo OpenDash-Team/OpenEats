@@ -1,10 +1,22 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
-createRoot(document.getElementById('root')!).render(
+import './index.css'
+import 'bootstrap/dist/css/bootstrap.min.css';
+
+import DiscoverPage from './pages/DiscoverPage.tsx'
+import RestaurantPage from './pages/RestaurantPage.tsx';
+
+const root = document.getElementById('root')!
+
+createRoot(root).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route index element={<DiscoverPage />} />
+        <Route path="/restaurants/:restaurantId" element={<RestaurantPage />} />
+      </Routes>
+    </BrowserRouter>
   </StrictMode>,
 )
