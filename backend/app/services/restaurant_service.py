@@ -39,11 +39,9 @@ class RestaurantService:
 
     def add_menu_item(self, restaurant_id: str, menu_section_id: str, request: MenuItemCreate) -> MenuItem:
         restaurants = self.repository.get_all_restaurants()
-
         restaurant = self._find_restaurant(restaurants, restaurant_id)
 
         menu_section = self._find_menu_section(restaurant.hasMenu.hasMenuSection, menu_section_id)
-
         new_menu_item = MenuItem(**request.model_dump())    #** means to take all key value pairs in this diciontary and pass them as keyword arguments to the MenuItem constructor.
                                                             #otherwise it will pass the entire dictionary as one positional argument and raise a TypeError.
 
@@ -55,3 +53,23 @@ class RestaurantService:
         self.repository.save_restaurants(restaurants)
 
         return new_menu_item
+
+
+    def update_menu_item(self, restaurant_id: str, menu_section_id: str, menu_item_id: str, request: MenuItemUpdate) -> MenuItem:
+        restaurants = self.repository.get_all_restaurants()
+        restaurant = self._find_restaurant(restaurants, restaurant_id)
+        menu_section = self._find_menu_section(restaurant.hasMenu.hasMenuSection, menu_section_id)
+        menu_items = (menu_section.hasMenuItem if isinstance(menu_section.hasMenuItem, list) else [menu_section.hasMenuItem])
+
+        for menu_item in menu_items:
+            if menu_item.id == menu_item_id:
+                update_data = request.model_dump(exclude_unset=True)
+
+                for field, value in update_data.items():
+                    setattr(menu_item, field, value)
+
+                self.repository.save_restaurants(restaurants)
+
+                return menu_item
+
+        raise ValueError(f"MenuItem with id '{menu_item_id}' is not found")

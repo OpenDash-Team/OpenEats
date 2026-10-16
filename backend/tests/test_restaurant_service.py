@@ -1,6 +1,6 @@
 from backend.app.repositories.restaurant_repository import RestaurantRepository
 from backend.app.services.restaurant_service import RestaurantService
-from backend.app.schemas.menu_item_request import MenuItemCreate
+from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
 from backend.app.schemas.restricted_diet import RestrictedDiet
 from backend.app.schemas.offer import Offer
 from backend.app.schemas.item_availability import ItemAvailability
@@ -38,3 +38,19 @@ def test_add_menu_item(tmp_path):
         if section.id == "q9th4Uh9iO6lHbCEJIVz2")
 
     assert any(item.id == new_item.id for item in section.hasMenuItem)
+
+
+def test_update_menu_item(tmp_path):
+    from backend.tests.conftest import REAL_DATA
+
+    source_file = REAL_DATA / "restaurants.json"
+    test_file = tmp_path / "restaurants.json"
+    test_file.write_text(source_file.read_text(encoding="utf-8"), encoding="utf-8")
+
+    repository = RestaurantRepository(test_file)
+    service = RestaurantService(repository)
+
+    request = MenuItemUpdate(description="Updated description")
+    updated_item = service.update_menu_item(restaurant_id="NwYJoaOHusWdiqXpM7mQH", menu_section_id="q9th4Uh9iO6lHbCEJIVz2", menu_item_id="F5hn9s3VD9qzKsLV4z8CW", request=request)
+
+    assert updated_item.description == "Updated description"
