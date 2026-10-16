@@ -50,3 +50,51 @@ def test_create_duplicate_restaurant_returns_409(client):
     response = client.post("/restaurants", json=new_restaurant(name=existing["name"], address=existing["address"]))
 
     assert response.status_code == 409
+
+# PATCH /restaurants/{restaurant_id}
+
+def test_update_restaurant_changes_only_fields_sent(client):
+    existing = client.get("/restaurants").json()[0]
+
+    response = client.patch(f"/restaurants/{existing['id']}", json={"telephone": "+1-250-555-0199"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["telephone"] == "+1-250-555-0199"
+    assert data["name"] == existing["name"]
+    assert data["hasMenu"] == existing["hasMenu"]
+
+def test_updated_restaurant_is_saved(client):
+    existing = client.get("/restaurants").json()[0]
+    client.patch(f"/restaurants/{existing['id']}", json={"name": "Renamed Cafe"})
+
+    restarted_client = TestClient(main())
+    response = restarted_client.get(f"/restaurants/{existing['id']}")
+
+    assert response.json()["name"] == "Renamed Cafe"
+
+def test_update_unknown_restaurant_returns_404(client):
+    response = client.patch("/restaurants/does-not-exist", json={"name": "New Name"})
+
+    assert response.status_code == 404
+
+def test_update_with_no_fields_returns_422(client):
+    existing = client.get("/restaurants").json()[0]
+
+    response = client.patch(f"/restaurants/{existing['id']}", json={})
+
+    assert response.status_code == 422
+
+def test_update_with_invalid_opening_hours_returns_422(client):
+    existing = client.get("/restaurants").json()[0]
+
+    response = client.patch(f"/restaurants/{existing['id']}", json={"openingHours": "always open"})
+
+    assert response.status_code == 422
+
+def test_update_into_duplicate_returns_409(client):
+    first, second = client.get("/restaurants").json()[:2]
+
+    response = client.patch(f"/restaurants/{first['id']}", json={"name": second["name"], "address": second["address"]})
+
+    assert response.status_code == 409

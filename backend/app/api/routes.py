@@ -7,8 +7,8 @@ from backend.app.schemas.restaurant_query import RestaurantQuery
 from backend.app.services.restaurant_service import RestaurantService
 from backend.app.schemas.menu_item import MenuItem
 from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
-from backend.app.schemas.restaurant_request import RestaurantCreate
-from backend.app.core.exceptions import DuplicateRestaurantError
+from backend.app.schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
+from backend.app.core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
 
 def create_routes(app: FastAPI):
     @app.get("/health")
@@ -93,6 +93,29 @@ def create_routes(app: FastAPI):
 
         try:
             return restaurant_service.create_restaurant(request)
+
+        except DuplicateRestaurantError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
+
+    @app.patch(
+        "/restaurants/{restaurant_id}",
+        response_model=Restaurant,
+        summary="Update a restaurant's information",
+        responses={
+            404: {"description": "No restaurant has this id"},
+            409: {"description": "Another restaurant already has the same name and address"},
+        },
+    )
+    def update_restaurant(restaurant_id: str, request: RestaurantUpdate):
+        """Changes only the fields that are sent. The id and menu can't be changed here."""
+        restaurant_service = get_restaurant_service()
+
+        try:
+            return restaurant_service.update_restaurant(restaurant_id, request)
+
+        except RestaurantNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
 
         except DuplicateRestaurantError as e:
             raise HTTPException(status_code=409, detail=str(e))
