@@ -3,8 +3,8 @@ from backend.app.schemas.restaurant import Restaurant
 from backend.app.schemas.menu_section import MenuSection
 from backend.app.schemas.menu_item import MenuItem
 from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
-from backend.app.schemas.restaurant_request import RestaurantCreate
-from backend.app.core.exceptions import DuplicateRestaurantError
+from backend.app.schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
+from backend.app.core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
 
 class RestaurantService:
     def __init__(self, repository: RestaurantRepository):
@@ -49,6 +49,26 @@ class RestaurantService:
         self.repository.save_restaurants(restaurants)
 
         return new_restaurant
+
+    def update_restaurant(self, restaurant_id: str, request: RestaurantUpdate) -> Restaurant:
+        restaurants = self.repository.get_all_restaurants()
+        restaurant = next((r for r in restaurants if r.id == restaurant_id), None)
+
+        if restaurant is None:
+            raise RestaurantNotFoundError(f"Restaurant with id '{restaurant_id}' is not found")
+
+        # Fields that were not sent (or sent as null) keep their current value
+        changes = request.model_dump(exclude_none=True)
+
+        other_restaurants = [r for r in restaurants if r.id != restaurant_id]
+        self._check_not_duplicate(other_restaurants, changes.get("name", restaurant.name), changes.get("address", restaurant.address))
+
+        for field, value in changes.items():
+            setattr(restaurant, field, value)
+
+        self.repository.save_restaurants(restaurants)
+
+        return restaurant
 
     def _check_not_duplicate(self, restaurants: list[Restaurant], name: str, address: str) -> None:
         # Chains share names, so a restaurant only counts as a duplicate if the address matches too
