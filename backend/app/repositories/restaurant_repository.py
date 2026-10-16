@@ -55,3 +55,10 @@ class RestaurantRepository:
 
     def save_restaurants(self, restaurants: list[Restaurant]) -> None:
         self.__save_restaurants(restaurants)
+    def get_restaurant_by_id(self, restaurant_id: str) -> Restaurant | None:
+        restaurants = self.get_all_restaurants()
+        
+        for restaurant in restaurants:
+            if restaurant.id == restaurant_id:
+                return restaurant
+        return None
