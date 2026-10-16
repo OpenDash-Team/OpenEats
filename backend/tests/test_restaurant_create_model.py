@@ -119,15 +119,65 @@ def test_address_longer_than_200_characters_is_rejected():
     with pytest.raises(ValidationError):
         RestaurantCreate(**{**valid_data(), "address": "a" * 201})
 
+def test_opening_hours_of_94_characters_is_accepted():
+    hours = ", ".join(["Mo 09:00-17:00"] * 6)
+
+    restaurant = RestaurantCreate(**{**valid_data(), "openingHours": hours})
+
+    assert restaurant.openingHours == hours
+
 def test_opening_hours_longer_than_100_characters_is_rejected():
+    hours = ", ".join(["Mo 09:00-17:00"] * 7)
+
     with pytest.raises(ValidationError):
-        RestaurantCreate(**{**valid_data(), "openingHours": "a" * 101})
+        RestaurantCreate(**{**valid_data(), "openingHours": hours})
 
 # Fields the server controls
 
 def test_client_cannot_set_id():
     with pytest.raises(ValidationError):
         RestaurantCreate(**{**valid_data(), "id": "abc123"})
+
+# Opening hours format
+
+def test_opening_hours_with_several_parts_is_accepted():
+    restaurant = RestaurantCreate(**{**valid_data(), "openingHours": "Mo-Fr 09:00-17:00, Sa 10:00-14:00"})
+
+    assert restaurant.openingHours == "Mo-Fr 09:00-17:00, Sa 10:00-14:00"
+
+def test_opening_hours_with_list_of_days_is_accepted():
+    restaurant = RestaurantCreate(**{**valid_data(), "openingHours": "Mo,We,Fr 09:00-17:00"})
+
+    assert restaurant.openingHours == "Mo,We,Fr 09:00-17:00"
+
+def test_opening_hours_closing_at_midnight_is_accepted():
+    restaurant = RestaurantCreate(**{**valid_data(), "openingHours": "Mo-Su 05:00-00:00"})
+
+    assert restaurant.openingHours == "Mo-Su 05:00-00:00"
+
+def test_opening_hours_with_unknown_day_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "openingHours": "Xy 09:00-17:00"})
+
+def test_opening_hours_with_impossible_time_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "openingHours": "Mo-Fr 24:00-17:00"})
+
+def test_opening_hours_with_impossible_minutes_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "openingHours": "Mo-Fr 09:60-17:00"})
+
+def test_opening_hours_with_single_digit_hour_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "openingHours": "Mo-Fr 9:00-17:00"})
+
+def test_opening_hours_with_text_after_comma_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "openingHours": "Mo-Fr 09:00-17:00, closed on holidays"})
+
+def test_opening_hours_without_days_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "openingHours": "09:00-17:00"})
 
 # Telephone format
 
