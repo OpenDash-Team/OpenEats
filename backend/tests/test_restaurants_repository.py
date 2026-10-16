@@ -85,9 +85,18 @@ def test_repository_saves_restaurants(tmp_path):
     assert reloaded[0].name == restaurants[0].name
 
 
-@patch("builtins.open", side_effect=PermissionError("Permission denied"))
+@patch("backend.app.repositories.restaurant_repository.tempfile.NamedTemporaryFile", side_effect=PermissionError("Permission denied"))
 def test_repository_handles_save_error(mock_file, tmp_path):
     repo = RestaurantRepository(tmp_path / "restaurants.json")
+
+    with pytest.raises(OSError, match="Failed to save restaurants"):
+        repo.save_restaurants([])
+
+
+@patch("backend.app.repositories.restaurant_repository.os.replace", side_effect=OSError("replace failed"))
+def test_repository_handles_replace_error(mock_replace, tmp_path):
+    output_file = tmp_path / "restaurants.json"
+    repo = RestaurantRepository(output_file)
 
     with pytest.raises(OSError, match="Failed to save restaurants"):
         repo.save_restaurants([])
