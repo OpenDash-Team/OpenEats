@@ -23,7 +23,7 @@ class RestaurantService:
                 val = getattr(r, sort_by)
                 
                 if sort_by == "hasMenu":
-                    return val is not None
+                    return val is None
                     
                 return val if val is not None else ""
 
