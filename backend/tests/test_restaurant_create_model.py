@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from backend.app.schemas.restaurant_create import RestaurantCreate
+from backend.app.schemas.restaurant_request import RestaurantCreate
 
 def valid_data():
     return {
