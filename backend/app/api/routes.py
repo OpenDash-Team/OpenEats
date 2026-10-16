@@ -7,6 +7,8 @@ from backend.app.schemas.restaurant_query import RestaurantQuery
 from backend.app.services.restaurant_service import RestaurantService
 from backend.app.schemas.menu_item import MenuItem
 from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
+from backend.app.schemas.restaurant_request import RestaurantCreate
+from backend.app.core.exceptions import DuplicateRestaurantError
 
 def create_routes(app: FastAPI):
     @app.get("/health")
@@ -76,3 +78,21 @@ def create_routes(app: FastAPI):
             return restaurant
         except JSONDecodeError:
             raise HTTPException(status_code=500, detail="Invalid JSON data")
+
+
+    @app.post(
+        "/restaurants",
+        response_model=Restaurant,
+        status_code=201,
+        summary="Create a restaurant",
+        responses={409: {"description": "A restaurant with the same name and address already exists"}},
+    )
+    def create_restaurant(request: RestaurantCreate):
+        """Creates a new restaurant. The server generates its id, and it starts with no menu."""
+        restaurant_service = get_restaurant_service()
+
+        try:
+            return restaurant_service.create_restaurant(request)
+
+        except DuplicateRestaurantError as e:
+            raise HTTPException(status_code=409, detail=str(e))
