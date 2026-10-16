@@ -87,6 +87,8 @@ The API provides the following endpoints:
 | GET | `/restaurants` | `Lists all the restaurants.` |
 | GET | `/restaurants?{query}` | `Lists all the restaurants that match searching query: name=...&hasMenu=...&sort_by=...&sort_desc=...` |
 | GET | `/restaurants/{restaurant_id}` | `Retrieves a specific restaurant by its ID.` |
+| POST | `/restaurants` | `Creates a restaurant. Returns 201, 409 if the same name and address already exist, 422 for invalid input.` |
+| PATCH | `/restaurants/{restaurant_id}` | `Updates only the fields sent. Returns 200, 404 for an unknown ID, 409 for a duplicate, 422 for invalid input.` |
 
 
 ## API Documentation
