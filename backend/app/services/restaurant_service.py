@@ -20,7 +20,10 @@ class RestaurantService:
 
 
     def _find_menu_section(self, menu_sections: MenuSection | list[MenuSection], menu_section_id: str) -> MenuSection:
-        for menu_section in menu_sections:
+
+        section_list = (menu_sections if isinstance(menu_sections, list) else [menu_sections])
+
+        for menu_section in section_list:
             if menu_section.id == menu_section_id:
                 return menu_section
 
