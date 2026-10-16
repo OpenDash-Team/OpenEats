@@ -25,11 +25,13 @@ def create_routes(app: FastAPI):
 
         except JSONDecodeError:
             raise HTTPException(status_code=500, detail="Restaurant data failed to due to invalid JSON")
-        except ValueError:
+        except ValueError as e:
+            if "Invalid sort_by" in str(e):
+                raise HTTPException(status_code=400, detail=str(e))
             raise HTTPException(status_code=500, detail="Restaurant data failed to follow correct list[Restaurant] schema")
 
 
-    @app.get("/restaurant/{restaurant_id}", response_model=Restaurant)
+    @app.get("/restaurants/{restaurant_id}", response_model=Restaurant)
     def get_restaurant(restaurant_id: str):
         restaurant_service = get_restaurant_service()
     

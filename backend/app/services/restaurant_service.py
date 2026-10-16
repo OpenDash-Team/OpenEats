@@ -14,11 +14,20 @@ class RestaurantService:
         if has_menu is not None:
             restaurantsList = [r for r in restaurantsList if (r.hasMenu is not None) == has_menu]
 
-        if sort_by and sort_by in Restaurant.model_fields:
-            restaurantsList.sort(
-                key=lambda r: getattr(r, sort_by), 
-                reverse=sort_desc
-            )
+        if sort_by:
+            if sort_by not in Restaurant.model_fields:
+                allowed_fields = ", ".join(Restaurant.model_fields.keys())
+                raise ValueError(f"Invalid sort_by field: '{sort_by}'. Allowed fields: {allowed_fields}")
+
+            def get_sort_value(r):
+                val = getattr(r, sort_by)
+                
+                if sort_by == "hasMenu":
+                    return val is not None
+                    
+                return val if val is not None else ""
+
+            restaurantsList.sort(key=get_sort_value, reverse=sort_desc)
             
         return restaurantsList
 

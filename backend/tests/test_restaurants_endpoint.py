@@ -43,3 +43,9 @@ def test_restaurants_endpoint_with_has_menu_query(client):
     
     if len(restaurants) == 0:
         warnings.warn("This couldn't be tested correctly because there were no restaurants.")
+
+def test_restaurants_endpoint_with_invalid_sort_by_query(client):
+    response = client.get("/restaurants?sort_by=non_existent_field")
+    
+    assert response.status_code == 400
+    assert "Invalid sort_by" in response.json()["detail"]

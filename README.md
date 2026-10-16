@@ -85,8 +85,8 @@ The API provides the following endpoints:
 |---|---|---|
 | GET | `/health` | `Checks if the API is running.` |
 | GET | `/restaurants` | `Lists all the restaurants.` |
-| GET | `/restaurants?{query}` | `Lists all the restaurants that match searching query: name=...&hasMenu=...&sort_by=...&so` |
-| GET | `/restaurant/{restaurant_id}` | `Retrieves a specific restaurant by its ID.` |
+| GET | `/restaurants?{query}` | `Lists all the restaurants that match searching query: name=...&hasMenu=...&sort_by=...&sort_desc=...` |
+| GET | `/restaurants/{restaurant_id}` | `Retrieves a specific restaurant by its ID.` |
 
 
 ## API Documentation
