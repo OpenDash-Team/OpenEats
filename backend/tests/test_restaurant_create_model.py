@@ -90,6 +90,39 @@ def test_blank_opening_hours_is_rejected():
     with pytest.raises(ValidationError):
         RestaurantCreate(**{**valid_data(), "openingHours": "   "})
 
+# Maximum lengths
+
+def test_name_of_100_characters_is_accepted():
+    restaurant = RestaurantCreate(**{**valid_data(), "name": "a" * 100})
+
+    assert restaurant.name == "a" * 100
+
+def test_name_longer_than_100_characters_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "name": "a" * 101})
+
+def test_description_of_500_characters_is_accepted():
+    restaurant = RestaurantCreate(**{**valid_data(), "description": "a" * 500})
+
+    assert restaurant.description == "a" * 500
+
+def test_description_longer_than_500_characters_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "description": "a" * 501})
+
+def test_address_of_200_characters_is_accepted():
+    restaurant = RestaurantCreate(**{**valid_data(), "address": "a" * 200})
+
+    assert restaurant.address == "a" * 200
+
+def test_address_longer_than_200_characters_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "address": "a" * 201})
+
+def test_opening_hours_longer_than_100_characters_is_rejected():
+    with pytest.raises(ValidationError):
+        RestaurantCreate(**{**valid_data(), "openingHours": "a" * 101})
+
 # Fields the server controls
 
 def test_client_cannot_set_id():
