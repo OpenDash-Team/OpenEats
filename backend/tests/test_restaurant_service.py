@@ -1,0 +1,40 @@
+from backend.app.repositories.restaurant_repository import RestaurantRepository
+from backend.app.services.restaurant_service import RestaurantService
+from backend.app.schemas.menu_item_request import MenuItemCreate
+from backend.app.schemas.restricted_diet import RestrictedDiet
+from backend.app.schemas.offer import Offer
+from backend.app.schemas.item_availability import ItemAvailability
+
+def test_add_menu_item(tmp_path):
+    from backend.tests.conftest import REAL_DATA
+
+    source_file = REAL_DATA / "restaurants.json"
+    test_file = tmp_path / "restaurants.json"
+
+    test_file.write_text(source_file.read_text(encoding="utf-8"), encoding="utf-8")
+
+    repository = RestaurantRepository(test_file)
+    service = RestaurantService(repository)
+
+    request = MenuItemCreate(name="Test Late", description="A test menu item", suitableForDiet=RestrictedDiet.VEGETARIAN,
+        offers=Offer(price=4.99, priceCurrency="USD", availability=ItemAvailability.IN_STOCK))
+
+    new_item = service.add_menu_item(restaurant_id="NwYJoaOHusWdiqXpM7mQH", menu_section_id="q9th4Uh9iO6lHbCEJIVz2", request=request)
+
+    assert new_item.id is not None
+    assert new_item.name == "Test Late"
+    assert new_item.description == "A test menu item"
+
+
+    reloaded_repository = RestaurantRepository(test_file)
+    restaurants = reloaded_repository.get_all_restaurants()
+
+    restaurant = next(restaurant
+        for restaurant in restaurants
+        if restaurant.id == "NwYJoaOHusWdiqXpM7mQH")
+
+    section = next(section
+        for section in restaurant.hasMenu.hasMenuSection
+        if section.id == "q9th4Uh9iO6lHbCEJIVz2")
+
+    assert any(item.id == new_item.id for item in section.hasMenuItem)
