@@ -34,33 +34,33 @@ def create_routes(app: FastAPI):
                 raise HTTPException(status_code=400, detail=str(e))
             raise HTTPException(status_code=500, detail="Restaurant data failed to follow correct list[Restaurant] schema")
 
-    @app.post("/restaurants/{restaurant_id}/menu-sections/{menu_section_id}/items", response_model=MenuItem, status_code=201)
-    def create_menu_item(restaurant_id: str, menu_section_id: str, request: MenuItemCreate):
+    @app.post("/restaurants/{restaurant_id}/menu-items", response_model=MenuItem, status_code=201)
+    def create_menu_item(restaurant_id: str, request: MenuItemCreate):
         restaurant_service = get_restaurant_service()
 
         try:
-            return restaurant_service.add_menu_item(restaurant_id=restaurant_id, menu_section_id=menu_section_id, request=request)
+            return restaurant_service.add_menu_item(restaurant_id=restaurant_id, request=request)
 
         except ValueError as e:
             raise HTTPException(status_code=404, detail=str(e))
 
-    @app.patch("/restaurants/{restaurant_id}/menu-sections/{menu_section_id}/items/{menu_item_id}", response_model=MenuItem)
-    def update_menu_item(restaurant_id: str, menu_section_id: str, menu_item_id: str, request: MenuItemUpdate):
+    @app.patch("/restaurants/{restaurant_id}/menu-items/{menu_item_id}", response_model=MenuItem)
+    def update_menu_item(restaurant_id: str, menu_item_id: str, request: MenuItemUpdate):
         restaurant_service = get_restaurant_service()
 
         try:
-            return restaurant_service.update_menu_item(restaurant_id=restaurant_id, menu_section_id=menu_section_id, menu_item_id=menu_item_id, request=request)
+            return restaurant_service.update_menu_item(restaurant_id=restaurant_id, menu_item_id=menu_item_id, request=request)
 
         except ValueError as e:
             raise HTTPException(status_code=404,detail=str(e))
 
 
-    @app.delete("/restaurants/{restaurant_id}/menu-sections/{menu_section_id}/items/{menu_item_id}", status_code=204)
-    def delete_menu_item(restaurant_id: str, menu_section_id: str, menu_item_id: str):
+    @app.delete("/restaurants/{restaurant_id}/menu-items/{menu_item_id}", status_code=204)
+    def delete_menu_item(restaurant_id: str, menu_item_id: str):
         restaurant_service = get_restaurant_service()
 
         try:
-            restaurant_service.delete_menu_item(restaurant_id=restaurant_id, menu_section_id=menu_section_id, menu_item_id=menu_item_id)
+            restaurant_service.delete_menu_item(restaurant_id=restaurant_id, menu_item_id=menu_item_id)
 
             return None
 
