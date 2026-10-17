@@ -75,7 +75,7 @@ def test_create_menu_item_endpoint_invalid_body(client):
 
 def test_update_menu_item_endpoint(client):
     response = client.patch(
-        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items/F5hn9s3VD9qzKsLV4z8CW",
+        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW",
         json={"description": "Updated through API"})
 
     assert response.status_code == 200
@@ -83,20 +83,20 @@ def test_update_menu_item_endpoint(client):
     assert data["description"] == "Updated through API"
 
 def test_delete_menu_item_endpoint(client):
-    response = client.delete("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items/F5hn9s3VD9qzKsLV4z8CW")
+    response = client.delete("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW")
     assert response.status_code == 204
 
 def test_delete_menu_item_endpoint_invalid_item(client):
-    response = client.delete("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items/not-a-real-item")
+    response = client.delete("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/not-a-real-item")
     assert response.status_code == 404
 
 def test_delete_menu_item_endpoint_invalid_restaurant(client):
-    response = client.delete("/restaurants/not-a-real-restaurant/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items/F5hn9s3VD9qzKsLV4z8CW")
+    response = client.delete("/restaurants/not-a-real-restaurant/menu-items/F5hn9s3VD9qzKsLV4z8CW")
     assert response.status_code == 404
 
-def test_delete_menu_item_endpoint_invalid_section(client):
-    response = client.delete("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/not-a-real-section/items/F5hn9s3VD9qzKsLV4z8CW")
-    assert response.status_code == 404
+# def test_delete_menu_item_endpoint_invalid_section(client):
+#     response = client.delete("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/not-a-real-section/items/F5hn9s3VD9qzKsLV4z8CW")
+#     assert response.status_code == 404
 
 
 def test_create_menu_item_rejects_extra_fields(client):
@@ -144,8 +144,46 @@ def test_create_menu_item_strips_whitespace(client):
 
 
 def test_update_menu_item_rejects_empty_body(client):
-    response = client.patch("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items/F5hn9s3VD9qzKsLV4z8CW",
-        json={}
+    response = client.patch("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW", json={})
+
+    assert response.status_code == 422
+
+
+def test_create_menu_item_rejects_blank_name(client):
+    response = client.post(
+        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
+        json={
+            "name": "   ",
+            "description": "Test",
+            "suitableForDiet": [
+                "https://schema.org/VegetarianDiet"
+            ],
+            "offers": {
+                "price": 4.99,
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/InStock"
+            }
+        }
     )
 
     assert response.status_code == 422
+
+def test_create_menu_item_rejects_negative_price(client):
+    response = client.post(
+        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
+        json={
+            "name": "Test Item",
+            "description": "Test",
+            "suitableForDiet": [
+                "https://schema.org/VegetarianDiet"
+            ],
+            "offers": {
+                "price": -1,
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/InStock"
+            }
+        }
+    )
+
+    assert response.status_code == 422
+

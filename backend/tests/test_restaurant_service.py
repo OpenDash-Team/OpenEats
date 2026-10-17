@@ -57,7 +57,7 @@ def test_update_menu_item(tmp_path):
     service = RestaurantService(repository)
 
     request = MenuItemUpdate(description="Updated description")
-    updated_item = service.update_menu_item(restaurant_id="NwYJoaOHusWdiqXpM7mQH", menu_section_id="q9th4Uh9iO6lHbCEJIVz2", menu_item_id="F5hn9s3VD9qzKsLV4z8CW", request=request)
+    updated_item = service.update_menu_item(restaurant_id="NwYJoaOHusWdiqXpM7mQH", menu_item_id="F5hn9s3VD9qzKsLV4z8CW", request=request)
 
     assert updated_item.description == "Updated description"
 
@@ -72,9 +72,7 @@ def test_delete_menu_item(tmp_path):
     repository = RestaurantRepository(test_file)
     service = RestaurantService(repository)
 
-    service.delete_menu_item(restaurant_id="NwYJoaOHusWdiqXpM7mQH",
-                            menu_section_id="q9th4Uh9iO6lHbCEJIVz2",
-                            menu_item_id="F5hn9s3VD9qzKsLV4z8CW")
+    service.delete_menu_item(restaurant_id="NwYJoaOHusWdiqXpM7mQH", menu_item_id="F5hn9s3VD9qzKsLV4z8CW")
 
     reloaded_repository = RestaurantRepository(test_file)
     restaurants = reloaded_repository.get_all_restaurants()

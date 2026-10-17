@@ -1,11 +1,11 @@
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator, Field
 from .offer import Offer
 from .restricted_diet import RestrictedDiet
 
 class MenuItemCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    name: str
+    name: str = Field(min_length=1)
     description: str = ""
     suitableForDiet: RestrictedDiet | list[RestrictedDiet]
     offers: Offer | list[Offer]
@@ -14,7 +14,7 @@ class MenuItemCreate(BaseModel):
 class MenuItemUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    name: str | None = None
+    name: str | None = Field(None, min_length=1)
     description: str | None = None
     suitableForDiet: RestrictedDiet | list[RestrictedDiet] | None = None
     offers: Offer | list[Offer] | None = None

@@ -3,6 +3,7 @@ from backend.app.schemas.restaurant import Restaurant
 from backend.app.schemas.menu_section import MenuSection
 from backend.app.schemas.menu_item import MenuItem
 from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
+from backend.app.schemas.menu import Menu
 
 UNCATEGORIZED_MENU_SECTION_ID = "uncategorized"
 UNCATEGORIZED_MENU_SECTION_NAME = "Uncategorized"
@@ -79,43 +80,47 @@ class RestaurantService:
 
         return new_menu_item
 
-    def update_menu_item(self, restaurant_id: str, menu_section_id: str, menu_item_id: str, request: MenuItemUpdate) -> MenuItem:
-        restaurants = self.repository.get_all_restaurants()
-        restaurant = self._find_restaurant(restaurants, restaurant_id)
-        menu_section = self._find_menu_section(restaurant.hasMenu.hasMenuSection, menu_section_id)
-        menu_items = (menu_section.hasMenuItem if isinstance(menu_section.hasMenuItem, list) else [menu_section.hasMenuItem])
-
-        for menu_item in menu_items:
-            if menu_item.id == menu_item_id:
-                update_data = request.model_dump(exclude_unset=True)
-
-                for field, value in update_data.items():
-                    setattr(menu_item, field, value)
-
-                self.repository.save_restaurants(restaurants)
-
-                return menu_item
-
-        raise ValueError(f"MenuItem with id '{menu_item_id}' is not found")
-
-    def delete_menu_item(self, restaurant_id: str, menu_section_id: str, menu_item_id: str) -> None:
+    def update_menu_item(self, restaurant_id: str, menu_item_id: str, request: MenuItemUpdate) -> MenuItem:
         restaurants = self.repository.get_all_restaurants()
         restaurant = self._find_restaurant(restaurants, restaurant_id)
 
-        menu_section = self._find_menu_section(restaurant.hasMenu.hasMenuSection, menu_section_id)
+        if restaurant.hasMenu is None:
+            raise ValueError(f"MenuItem with id '{menu_item_id}' is not found")
+
+        _, menu_item = self._find_menu_item(restaurant.hasMenu.hasMenuSection, menu_item_id)
+
+        update_data = request.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(menu_item, field, value)
+
+        self.repository.save_restaurants(restaurants)
+        return menu_item
+
+
+    def delete_menu_item(self, restaurant_id: str, menu_item_id: str) -> None:
+        restaurants = self.repository.get_all_restaurants()
+        restaurant = self._find_restaurant(restaurants, restaurant_id)
+
+        if restaurant.hasMenu is None:
+            raise ValueError(f"MenuItem with id '{menu_item_id}' is not found")
+
+        menu_section, menu_item = self._find_menu_item(restaurant.hasMenu.hasMenuSection, menu_item_id)
         menu_items = (menu_section.hasMenuItem if isinstance(menu_section.hasMenuItem, list) else [menu_section.hasMenuItem])
+        menu_items.remove(menu_item)
+        menu_section.hasMenuItem = menu_items
 
-        for menu_item in menu_items:
-            if menu_item.id == menu_item_id:
-                menu_items.remove(menu_item)
-                menu_section.hasMenuItem = menu_items
-
-                self.repository.save_restaurants(restaurants)
-                return
-
-        raise ValueError(f"MenuItem with id '{menu_item_id}' is not found")
+        self.repository.save_restaurants(restaurants)
 
     def _get_or_create_uncategorized_section(self, restaurant: Restaurant) -> MenuSection:
+
+        if restaurant.hasMenu is None:
+            uncategorized_section = MenuSection(id=UNCATEGORIZED_MENU_SECTION_ID, name=UNCATEGORIZED_MENU_SECTION_NAME, description="", hasMenuItem=[])
+
+            restaurant.hasMenu = Menu(hasMenuSection=[uncategorized_section])
+
+            return uncategorized_section
+
         menu_sections = (restaurant.hasMenu.hasMenuSection if isinstance(restaurant.hasMenu.hasMenuSection, list) else [restaurant.hasMenu.hasMenuSection])
 
         for section in menu_sections:
@@ -128,3 +133,25 @@ class RestaurantService:
         restaurant.hasMenu.hasMenuSection = menu_sections
 
         return uncategorized_section
+
+
+    def _find_menu_item(self,  menu_sections: MenuSection | list[MenuSection], menu_item_id: str) -> tuple[MenuSection, MenuItem]:
+
+        section_list = (menu_sections if isinstance(menu_sections, list) else [menu_sections])
+
+        for section in section_list:
+            if section.hasMenuItem is not None:
+                menu_items = (section.hasMenuItem if isinstance(section.hasMenuItem, list) else [section.hasMenuItem])
+
+                for item in menu_items:
+                    if item.id == menu_item_id:
+                        return section, item
+
+            if section.hasMenuSection is not None:
+                try:
+                    return self._find_menu_item(section.hasMenuSection, menu_item_id)
+                except ValueError:
+                    pass
+
+        raise ValueError(f"MenuItem with id '{menu_item_id}' is not found")
+
