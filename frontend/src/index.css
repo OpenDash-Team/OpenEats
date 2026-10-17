@@ -13,3 +13,8 @@
   line-clamp: 2;
   overflow: hidden;
 }
+
+.card-hover:hover {
+    box-shadow: var(--bs-box-shadow-lg);
+    transform: translateY(-5px);
+}

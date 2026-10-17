@@ -2,8 +2,3 @@
   flex: 1 0 calc((100% - 3rem) / 3);
   min-width: 300px;
 }
-
-.card-grid > .card:hover {
-    box-shadow: var(--bs-box-shadow-lg);
-    transform: translateY(-5px);
-}

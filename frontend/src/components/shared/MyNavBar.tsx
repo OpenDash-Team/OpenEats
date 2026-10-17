@@ -9,6 +9,11 @@ import { useNavigate } from 'react-router-dom';
 const MyNavBar = () => {
   const navigate = useNavigate();
 
+  const signOut = () => {
+    localStorage.setItem("userMode", "")
+    window.location.replace('/')
+  }
+
   return (
     <Navbar bg="dark" data-bs-theme="dark" sticky="top" className="py-3 shadow-lg">
         <Container>
@@ -22,7 +27,7 @@ const MyNavBar = () => {
             <Nav.Link className="d-flex gap-2 align-items-center"><FaShoppingCart /> Cart</Nav.Link>
             <div className="text-body vr"></div>
             <span className="text-secondary-emphasis">John Doe</span>
-            <Button variant="outline-danger" className="fs-7">Sign Out</Button>
+            <Button variant="outline-danger" className="fs-7" onClick={signOut}>Sign Out</Button>
           </div>         
         </Container>
       </Navbar>
