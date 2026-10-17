@@ -1,4 +1,4 @@
-# Project Name
+# OpenEats
 
 ## Team Name
 
@@ -77,6 +77,46 @@ The application will be available at:
 http://127.0.0.1:8000
 ```
 
+## Running the Web UI
+
+### Prerequisites
+
+Install Node.js and npm.
+
+### Start the development server
+
+From the repository root, go into the frontend directory:
+
+```bash
+cd frontend
+```
+
+Install the packages:
+
+```bash
+npm install
+```
+
+Start the Web UI:
+
+```bash
+npm run dev
+```
+
+Open the URL printed by Vite (normally `http://localhost:5173/`).
+
+### Using the UI
+
+On the startup screen, choose **Customer** to browse restaurants or **Restaurant** to select an existing restaurant or create a new one. The restaurant view has tabs for general details and menu items.
+
+### Build
+
+From the `frontend` directory, create a production build with:
+
+```bash
+npm run build
+```
+
 ## API Endpoints
 
 The API provides the following endpoints:
@@ -128,9 +168,20 @@ OpenEats/
 │   ├── tests/              # Automated tests
 │   │   └── test-data/      # Test data
 │   └── requirements.txt    # Python dependencies
-├── frontend/
-├── docs/PROVENANCE.md
+├── docs/
+│   └── PROVENANCE.md       # AI Usage information
 ├── scrum/
+├── frontend/               # React and Vite Web UI
+│   ├── src/
+│   │   ├── api/            # Backend request functions
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Application screens
+│   │   ├── schemas/        # Frontend data types
+│   │   ├── main.tsx        # App entry point and routes
+│   │   └── index.css       # Shared styles
+│   ├── index.html          # HTML entry point
+│   ├── package.json        # Dependencies and npm scripts
+│   └── vite.config.ts      # Vite configuration
 ├── README.md
 └── .gitignore 
 ```

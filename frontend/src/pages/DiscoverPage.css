@@ -1,0 +1,4 @@
+.card-grid > .card {
+  flex: 1 0 calc((100% - 3rem) / 3);
+  min-width: 300px;
+}
