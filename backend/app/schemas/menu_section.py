@@ -12,4 +12,4 @@ class MenuSection(BaseModel):
     name: str
     description: str = ""
     hasMenuSection: MenuSection | list[MenuSection] | None = None
-    hasMenuItem: MenuItem | list[MenuItem]
+    hasMenuItem: MenuItem | list[MenuItem] | None = None

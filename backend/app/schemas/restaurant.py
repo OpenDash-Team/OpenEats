@@ -12,4 +12,4 @@ class Restaurant(BaseModel):
     address: str
     telephone: str
     openingHours: str
-    hasMenu: Menu
+    hasMenu: Menu | None = None

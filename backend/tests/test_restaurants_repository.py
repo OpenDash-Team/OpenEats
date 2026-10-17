@@ -63,3 +63,40 @@ def test_repository_loads_real_data():
     assert len(results) >= 2
     assert results[0].name is not None
     assert results[0].id is not None
+
+
+def test_repository_saves_restaurants(tmp_path):
+    from backend.tests.conftest import REAL_DATA
+
+    source_repo = RestaurantRepository(REAL_DATA / "restaurants.json")
+    restaurants = source_repo.get_all_restaurants()
+
+    output_file = tmp_path / "restaurants.json"
+    output_repo = RestaurantRepository(output_file)
+
+    output_repo.save_restaurants(restaurants)
+
+    assert output_file.exists()
+
+    reloaded = output_repo.get_all_restaurants()
+
+    assert len(reloaded) == len(restaurants)
+    assert reloaded[0].id == restaurants[0].id
+    assert reloaded[0].name == restaurants[0].name
+
+
+@patch("backend.app.repositories.restaurant_repository.tempfile.NamedTemporaryFile", side_effect=PermissionError("Permission denied"))
+def test_repository_handles_save_error(mock_file, tmp_path):
+    repo = RestaurantRepository(tmp_path / "restaurants.json")
+
+    with pytest.raises(OSError, match="Failed to save restaurants"):
+        repo.save_restaurants([])
+
+
+@patch("backend.app.repositories.restaurant_repository.os.replace", side_effect=OSError("replace failed"))
+def test_repository_handles_replace_error(mock_replace, tmp_path):
+    output_file = tmp_path / "restaurants.json"
+    repo = RestaurantRepository(output_file)
+
+    with pytest.raises(OSError, match="Failed to save restaurants"):
+        repo.save_restaurants([])
