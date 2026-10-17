@@ -6,6 +6,6 @@ from backend.app.schemas.item_availability import ItemAvailability
 
 class Offer(BaseModel):
     type: str = Field("Offer", frozen=True)
-    price: Decimal
+    price: Decimal = Field(ge=0)
     priceCurrency: str
     availability: ItemAvailability

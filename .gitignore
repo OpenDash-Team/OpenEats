@@ -5,3 +5,6 @@ __pycache__
 .env
 
 # Frontend
+
+# VSCode Settings
+.vscode
