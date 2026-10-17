@@ -89,6 +89,9 @@ The API provides the following endpoints:
 | GET | `/restaurants/{restaurant_id}` | `Retrieves a specific restaurant by its ID.` |
 | POST | `/restaurants` | `Creates a restaurant. Returns 201, 409 if the same name and address already exist, 422 for invalid input.` |
 | PATCH | `/restaurants/{restaurant_id}` | `Updates only the fields sent. Returns 200, 404 for an unknown ID, 409 for a duplicate, 422 for invalid input.` |
+| POST | `/restaurants/{restaurant_id}/menu-items` | `Creates a new menu item. Returns 201, 404 if the restaurant is not found, 422 for invalid input.` |
+| PATCH | `/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Updates a menu item's fields. Returns 200, 404 if the item or restaurant is not found, 422 for invalid input.` |
+| DELETE | `/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Deletes a specific menu item. Returns 204 on success, 404 if not found.` |
 
 
 ## API Documentation
@@ -126,6 +129,8 @@ OpenEats/
 │   │   └── test-data/      # Test data
 │   └── requirements.txt    # Python dependencies
 ├── frontend/
+├── docs/PROVENANCE.md
+├── scrum/
 ├── README.md
 └── .gitignore 
 ```
