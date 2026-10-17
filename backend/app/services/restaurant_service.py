@@ -4,6 +4,9 @@ from backend.app.schemas.menu_section import MenuSection
 from backend.app.schemas.menu_item import MenuItem
 from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
 
+UNCATEGORIZED_MENU_SECTION_ID = "uncategorized"
+UNCATEGORIZED_MENU_SECTION_NAME = "Uncategorized"
+
 class RestaurantService:
     def __init__(self, repository: RestaurantRepository):
         self.repository: RestaurantRepository = repository
@@ -58,14 +61,16 @@ class RestaurantService:
 
         raise ValueError(f"MenuSection with id '{menu_section_id}' is not found")
 
-    def add_menu_item(self, restaurant_id: str, menu_section_id: str, request: MenuItemCreate) -> MenuItem:
+    def add_menu_item(self, restaurant_id: str, request: MenuItemCreate) -> MenuItem:
         restaurants = self.repository.get_all_restaurants()
         restaurant = self._find_restaurant(restaurants, restaurant_id)
 
-        menu_section = self._find_menu_section(restaurant.hasMenu.hasMenuSection, menu_section_id)
-        new_menu_item = MenuItem(**request.model_dump())    
+        menu_section = self._get_or_create_uncategorized_section(restaurant)
+        new_menu_item = MenuItem(**request.model_dump())
 
-        if isinstance(menu_section.hasMenuItem, list):
+        if menu_section.hasMenuItem is None:
+            menu_section.hasMenuItem = [new_menu_item]
+        elif isinstance(menu_section.hasMenuItem, list):
             menu_section.hasMenuItem.append(new_menu_item)
         else:
             menu_section.hasMenuItem = [menu_section.hasMenuItem, new_menu_item]
@@ -109,3 +114,17 @@ class RestaurantService:
                 return
 
         raise ValueError(f"MenuItem with id '{menu_item_id}' is not found")
+
+    def _get_or_create_uncategorized_section(self, restaurant: Restaurant) -> MenuSection:
+        menu_sections = (restaurant.hasMenu.hasMenuSection if isinstance(restaurant.hasMenu.hasMenuSection, list) else [restaurant.hasMenu.hasMenuSection])
+
+        for section in menu_sections:
+            if section.id == UNCATEGORIZED_MENU_SECTION_ID:
+                return section
+
+        uncategorized_section = MenuSection(id=UNCATEGORIZED_MENU_SECTION_ID, name=UNCATEGORIZED_MENU_SECTION_NAME, description="", hasMenuItem=[])
+
+        menu_sections.append(uncategorized_section)
+        restaurant.hasMenu.hasMenuSection = menu_sections
+
+        return uncategorized_section

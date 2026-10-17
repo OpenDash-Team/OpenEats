@@ -1,6 +1,6 @@
 def test_create_menu_item_endpoint(client):
     response = client.post(
-        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items",
+        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "Test Mocha",
             "description": "Chocolate and espresso",
@@ -25,7 +25,7 @@ def test_create_menu_item_endpoint(client):
 
 def test_create_menu_item_endpoint_invalid_restaurant(client):
     response = client.post(
-        "/restaurants/not-a-real-id/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items",
+        "/restaurants/not-a-real-id/menu-items",
         json={
             "name": "Test Mocha",
             "description": "Chocolate and espresso",
@@ -46,29 +46,29 @@ def test_create_menu_item_endpoint_invalid_restaurant(client):
 
     assert "not found" in data["detail"].lower()
 
-def test_create_menu_item_endpoint_invalid_section(client):
-    response = client.post(
-        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/not-a-real-section/items",
-        json={
-            "name": "Test Mocha",
-            "description": "Chocolate and espresso",
-            "suitableForDiet": [
-                "https://schema.org/VegetarianDiet"
-            ],
-            "offers": {
-                "price": 4.99,
-                "priceCurrency": "USD",
-                "availability": "https://schema.org/InStock"
-            }
-        }
-    )
+# def test_create_menu_item_endpoint_invalid_section(client):
+#     response = client.post(
+#         "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
+#         json={
+#             "name": "Test Mocha",
+#             "description": "Chocolate and espresso",
+#             "suitableForDiet": [
+#                 "https://schema.org/VegetarianDiet"
+#             ],
+#             "offers": {
+#                 "price": 4.99,
+#                 "priceCurrency": "USD",
+#                 "availability": "https://schema.org/InStock"
+#             }
+#         }
+#     )
 
-    assert response.status_code == 404
+    # assert response.status_code == 422
 
 
 def test_create_menu_item_endpoint_invalid_body(client):
     response = client.post(
-        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items",
+        "/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={"description": "Missing required fields"})
 
     assert response.status_code == 422
@@ -100,7 +100,7 @@ def test_delete_menu_item_endpoint_invalid_section(client):
 
 
 def test_create_menu_item_rejects_extra_fields(client):
-    response = client.post("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items",
+    response = client.post("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "Test Lemon Tea",
             "description": "Test item",
@@ -120,7 +120,7 @@ def test_create_menu_item_rejects_extra_fields(client):
 
 
 def test_create_menu_item_strips_whitespace(client):
-    response = client.post("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-sections/q9th4Uh9iO6lHbCEJIVz2/items",
+    response = client.post("/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "   Test Lemon Tea   ",
             "description": "   Lemon and Tea   ",
