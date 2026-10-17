@@ -168,10 +168,10 @@ OpenEats/
 │   ├── tests/              # Automated tests
 │   │   └── test-data/      # Test data
 │   └── requirements.txt    # Python dependencies
-├── frontend/
-├── docs/PROVENANCE.md
+├── docs/
+│   └── PROVENANCE.md       # AI Usage information
 ├── scrum/
-├── frontend/                # React and Vite Web UI
+├── frontend/               # React and Vite Web UI
 │   ├── src/
 │   │   ├── api/            # Backend request functions
 │   │   ├── components/     # Reusable UI components
