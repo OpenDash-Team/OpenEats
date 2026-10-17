@@ -4,6 +4,8 @@ from backend.app.schemas.menu_section import MenuSection
 from backend.app.schemas.menu_item import MenuItem
 from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
 from backend.app.schemas.menu import Menu
+from backend.app.schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
+from backend.app.core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
 
 UNCATEGORIZED_MENU_SECTION_ID = "uncategorized"
 UNCATEGORIZED_MENU_SECTION_NAME = "Uncategorized"
@@ -39,6 +41,44 @@ class RestaurantService:
 
     def get_restaurant_by_id(self, restaurant_id: str):
         return self.repository.get_restaurant_by_id(restaurant_id)
+
+    def create_restaurant(self, request: RestaurantCreate) -> Restaurant:
+        restaurants = self.repository.get_all_restaurants()
+        self._check_not_duplicate(restaurants, request.name, request.address)
+
+        # id, type and hasMenu are filled in by the Restaurant model (new restaurants start with no menu)
+        new_restaurant = Restaurant(**request.model_dump())
+
+        restaurants.append(new_restaurant)
+        self.repository.save_restaurants(restaurants)
+
+        return new_restaurant
+
+    def update_restaurant(self, restaurant_id: str, request: RestaurantUpdate) -> Restaurant:
+        restaurants = self.repository.get_all_restaurants()
+        restaurant = next((r for r in restaurants if r.id == restaurant_id), None)
+
+        if restaurant is None:
+            raise RestaurantNotFoundError(f"Restaurant with id '{restaurant_id}' is not found")
+
+        # Fields that were not sent (or sent as null) keep their current value
+        changes = request.model_dump(exclude_none=True)
+
+        other_restaurants = [r for r in restaurants if r.id != restaurant_id]
+        self._check_not_duplicate(other_restaurants, changes.get("name", restaurant.name), changes.get("address", restaurant.address))
+
+        for field, value in changes.items():
+            setattr(restaurant, field, value)
+
+        self.repository.save_restaurants(restaurants)
+
+        return restaurant
+
+    def _check_not_duplicate(self, restaurants: list[Restaurant], name: str, address: str) -> None:
+        # Chains share names, so a restaurant only counts as a duplicate if the address matches too
+        for restaurant in restaurants:
+            if restaurant.name.lower() == name.lower() and restaurant.address.lower() == address.lower():
+                raise DuplicateRestaurantError(f"A restaurant named '{name}' already exists at '{address}'")
 
     def _find_restaurant(self, restaurants: list[Restaurant], restaurant_id: str) -> Restaurant:
         for restaurant in restaurants:
