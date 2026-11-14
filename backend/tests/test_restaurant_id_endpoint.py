@@ -4,7 +4,7 @@ from backend.app.schemas.restaurant import Restaurant
 
 def get_valid_restaurant_id(client):
     """Helper function to grab a real ID from the database for testing."""
-    response = client.get("/restaurants")
+    response = client.get("/api/v1/restaurants")
     data = response.json()
     if response.status_code == 200 and len(data) > 0:
         return data[0]["id"]
@@ -17,7 +17,7 @@ def test_restaurant_id_endpoint_returns_200(client):
         warnings.warn("This couldn't be tested correctly because there were no restaurants.")
         return
 
-    response = client.get(f"/restaurants/{test_id}")
+    response = client.get(f"/api/v1/restaurants/{test_id}")
     assert response.status_code == 200, f"Failed! Server returned: {response.json()}"
 
 def test_restaurant_id_endpoint_returns_valid_json(client):
@@ -27,7 +27,7 @@ def test_restaurant_id_endpoint_returns_valid_json(client):
         warnings.warn("This couldn't be tested correctly because there were no restaurants.")
         return
 
-    response = client.get(f"/restaurants/{test_id}")
+    response = client.get(f"/api/v1/restaurants/{test_id}")
     assert response.status_code == 200, f"Failed! Server returned: {response.json()}"
     data = response.json()
     
@@ -37,7 +37,7 @@ def test_restaurant_id_endpoint_returns_valid_json(client):
     assert restaurant.id == test_id
 
 def test_restaurant_id_endpoint_returns_404_for_invalid_id(client):
-    response = client.get("/restaurants/this-id-does-not-exist-999")
+    response = client.get("/api/v1/restaurants/this-id-does-not-exist-999")
    
     assert response.status_code == 404, f"Expected 404, but got: {response.status_code}"
     data = response.json()

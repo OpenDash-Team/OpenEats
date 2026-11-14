@@ -5,11 +5,11 @@ from backend.app.schemas.restaurant import Restaurant
 
 def test_restaurants_endpoint_returns_200(client):
     
-    response = client.get("/restaurants")
+    response = client.get("/api/v1/restaurants")
     assert response.status_code == 200, f"Failed! Server returned: {response.json()}"
     
 def test_restaurants_endpoint_returns_valid_json(client):
-    response = client.get("/restaurants")
+    response = client.get("/api/v1/restaurants")
     assert response.status_code == 200, f"Failed! Server returned: {response.json()}"
     data = response.json()
     
@@ -21,7 +21,7 @@ def test_restaurants_endpoint_returns_valid_json(client):
         warnings.warn("This couldn't be tested correctly because there were no restaurants.")
 
 def test_restaurants_endpoint_with_name_query(client):
-    response = client.get("/restaurants?name=Starbucks")
+    response = client.get("/api/v1/restaurants?name=Starbucks")
     assert response.status_code == 200, f"Failed! Server returned: {response.json()}"
     data = response.json()
     
@@ -33,7 +33,7 @@ def test_restaurants_endpoint_with_name_query(client):
         warnings.warn("This couldn't be tested correctly because there were no restaurants.")
 
 def test_restaurants_endpoint_with_has_menu_query(client):
-    response = client.get("/restaurants?hasMenu=true")
+    response = client.get("/api/v1/restaurants?hasMenu=true")
     assert response.status_code == 200, f"Failed! Server returned: {response.json()}"
     data = response.json()
     
@@ -45,7 +45,7 @@ def test_restaurants_endpoint_with_has_menu_query(client):
         warnings.warn("This couldn't be tested correctly because there were no restaurants.")
 
 def test_restaurants_endpoint_with_invalid_sort_by_query(client):
-    response = client.get("/restaurants?sort_by=non_existent_field")
+    response = client.get("/api/v1/restaurants?sort_by=non_existent_field")
     
     assert response.status_code == 400
     assert "Invalid sort_by" in response.json()["detail"]
