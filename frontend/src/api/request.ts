@@ -1,3 +1,5 @@
+const API_VERSION = 1;
+
 function errorMessage(detail: unknown, status: number): string {
     if (typeof detail === "string") return detail;
 
@@ -16,7 +18,7 @@ function errorMessage(detail: unknown, status: number): string {
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`/api${path}`, init);
+    const response = await fetch(`/api/v${API_VERSION}${path}`, init);
 
     if (!response.ok) {
         const body = await response.json().catch(() => null);

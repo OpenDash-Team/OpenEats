@@ -1,0 +1,6 @@
+services:
+  app:
+    build: .
+    container_name: openeats
+    ports:
+      - "8080:8000"

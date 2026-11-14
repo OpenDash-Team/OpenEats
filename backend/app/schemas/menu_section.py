@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from backend.app.core.identifiers import generate_id
+from ..core.identifiers import generate_id
 
 from .menu_item import MenuItem
 

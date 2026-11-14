@@ -3,7 +3,7 @@ import json
 from json import JSONDecodeError
 from pydantic import TypeAdapter, ValidationError
 import warnings
-from backend.app.schemas.restaurant import Restaurant
+from ..schemas.restaurant import Restaurant
 import os
 import tempfile
 
