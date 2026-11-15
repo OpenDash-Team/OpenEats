@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from backend.app.services.restaurant_service import RestaurantService
-from backend.app.repositories.restaurant_repository import RestaurantRepository
+from ..services.restaurant_service import RestaurantService
+from ..repositories.restaurant_repository import RestaurantRepository
 
 def get_data_dir() -> Path:
     data_dir = Path(__file__).resolve().parents[2] / "data"

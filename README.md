@@ -21,25 +21,27 @@ git clone https://github.com/RealUltra/OpenEats
 cd OpenEats
 ```
 
-## Virtual Environment
+## Development
+
+### Virtual Environment
 
 Create a virtual environment:
 
-### Linux / macOS
+#### Linux / macOS
 
 ```bash
 python3 -m venv backend/.venv
 source backend/.venv/bin/activate
 ```
 
-### Windows
+#### Windows
 
 ```powershell
 python -m venv backend\.venv
 backend\.venv\Scripts\Activate.ps1
 ```
 
-## Install Dependencies
+### Install Dependencies
 
 Install the required dependencies:
 
@@ -47,28 +49,28 @@ Install the required dependencies:
 pip install -r backend/requirements.txt
 ```
 
-## Sample Data
+### Sample Data (Optional, First Run Only)
 
 To use the sample data, rename `backend/sample-data` to `backend/data`.
 
-### Linux / macOS
+#### Linux / macOS
 
 ```bash
 mv backend/sample-data backend/data
 ```
 
-### Windows
+#### Windows
 
 ```powershell
 Rename-Item backend/sample-data backend/data
 ```
 
-## Running the API
+### Running the API
 
 Start the application with:
 
 ```bash
-uv run fastapi dev --entrypoint backend.app.main:main
+fastapi dev --entrypoint backend.app.main:main
 ```
 
 The application will be available at:
@@ -77,13 +79,13 @@ The application will be available at:
 http://127.0.0.1:8000
 ```
 
-## Running the Web UI
+### Running the Web UI
 
-### Prerequisites
+#### Prerequisites
 
 Install Node.js and npm.
 
-### Start the development server
+#### Start the development server
 
 From the repository root, go into the frontend directory:
 
@@ -105,17 +107,57 @@ npm run dev
 
 Open the URL printed by Vite (normally `http://localhost:5173/`).
 
-### Using the UI
+## Production
 
-On the startup screen, choose **Customer** to browse restaurants or **Restaurant** to select an existing restaurant or create a new one. The restaurant view has tabs for general details and menu items.
+### Prerequisites
 
-### Build
+Install Docker with Docker Compose.
 
-From the `frontend` directory, create a production build with:
+### Sample Data (Optional, First Run Only)
+
+To start with the sample restaurants, move `backend/sample-data` to `data` in the repository root before starting the application.
+
+#### Linux / macOS
 
 ```bash
-npm run build
+mv backend/sample-data ./data
 ```
+
+#### Windows
+
+```powershell
+Move-Item backend/sample-data data
+```
+
+### Start the Application
+
+From the repository root, run:
+
+```bash
+docker compose up --build -d
+```
+
+If there have been no changes since you last built the image, you may run:
+
+```bash
+docker compose up -d
+```
+
+### Open the Application
+
+```text
+http://127.0.0.1:8000/
+```
+
+### Stop the Application
+
+```bash
+docker compose down
+```
+
+## Using the UI
+
+On the startup screen, choose **Customer** to browse restaurants or **Restaurant** to select an existing restaurant or create a new one. The restaurant view has tabs for general details and menu items.
 
 ## API Endpoints
 
@@ -123,15 +165,15 @@ The API provides the following endpoints:
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | `Checks if the API is running.` |
-| GET | `/restaurants` | `Lists all the restaurants.` |
-| GET | `/restaurants?{query}` | `Lists all the restaurants that match searching query: name=...&hasMenu=...&sort_by=...&sort_desc=...` |
-| GET | `/restaurants/{restaurant_id}` | `Retrieves a specific restaurant by its ID.` |
-| POST | `/restaurants` | `Creates a restaurant. Returns 201, 409 if the same name and address already exist, 422 for invalid input.` |
-| PATCH | `/restaurants/{restaurant_id}` | `Updates only the fields sent. Returns 200, 404 for an unknown ID, 409 for a duplicate, 422 for invalid input.` |
-| POST | `/restaurants/{restaurant_id}/menu-items` | `Creates a new menu item. Returns 201, 404 if the restaurant is not found, 422 for invalid input.` |
-| PATCH | `/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Updates a menu item's fields. Returns 200, 404 if the item or restaurant is not found, 422 for invalid input.` |
-| DELETE | `/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Deletes a specific menu item. Returns 204 on success, 404 if not found.` |
+| GET | `/api/v1/health` | `Checks if the API is running.` |
+| GET | `/api/v1/restaurants` | `Lists all the restaurants.` |
+| GET | `/api/v1/restaurants?{query}` | `Lists all the restaurants that match searching query: name=...&hasMenu=...&sort_by=...&sort_desc=...` |
+| GET | `/api/v1/restaurants/{restaurant_id}` | `Retrieves a specific restaurant by its ID.` |
+| POST | `/api/v1/restaurants` | `Creates a restaurant. Returns 201, 409 if the same name and address already exist, 422 for invalid input.` |
+| PATCH | `/api/v1/restaurants/{restaurant_id}` | `Updates only the fields sent. Returns 200, 404 for an unknown ID, 409 for a duplicate, 422 for invalid input.` |
+| POST | `/api/v1/restaurants/{restaurant_id}/menu-items` | `Creates a new menu item. Returns 201, 404 if the restaurant is not found, 422 for invalid input.` |
+| PATCH | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Updates a menu item's fields. Returns 200, 404 if the item or restaurant is not found, 422 for invalid input.` |
+| DELETE | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Deletes a specific menu item. Returns 204 on success, 404 if not found.` |
 
 
 ## API Documentation
@@ -139,7 +181,7 @@ The API provides the following endpoints:
 API documentation is available at:
 
 ```text
-http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/api/v1/docs
 ```
 
 ## Running Tests

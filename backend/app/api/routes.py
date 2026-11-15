@@ -1,21 +1,21 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, APIRouter
 from json import JSONDecodeError
 
-from backend.app.core.dependencies import get_restaurant_service
-from backend.app.schemas.restaurant import Restaurant
-from backend.app.schemas.restaurant_query import RestaurantQuery
-from backend.app.services.restaurant_service import RestaurantService
-from backend.app.schemas.menu_item import MenuItem
-from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
-from backend.app.schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
-from backend.app.core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
+from ..core.dependencies import get_restaurant_service
+from ..schemas.restaurant import Restaurant
+from ..schemas.restaurant_query import RestaurantQuery
+from ..services.restaurant_service import RestaurantService
+from ..schemas.menu_item import MenuItem
+from ..schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
+from ..schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
+from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
 
-def create_routes(app: FastAPI):
-    @app.get("/health")
+def create_routes(api: FastAPI | APIRouter):
+    @api.get("/health")
     async def health():
         return {"status": "ok"}
 
-    @app.get("/restaurants", response_model=list[Restaurant])
+    @api.get("/restaurants", response_model=list[Restaurant])
     def list_restaurants(params: RestaurantQuery = Depends()):
         restaurant_service = get_restaurant_service()
     
@@ -34,7 +34,7 @@ def create_routes(app: FastAPI):
                 raise HTTPException(status_code=400, detail=str(e))
             raise HTTPException(status_code=500, detail="Restaurant data failed to follow correct list[Restaurant] schema")
 
-    @app.post("/restaurants/{restaurant_id}/menu-items", response_model=MenuItem, status_code=201)
+    @api.post("/restaurants/{restaurant_id}/menu-items", response_model=MenuItem, status_code=201)
     def create_menu_item(restaurant_id: str, request: MenuItemCreate):
         restaurant_service = get_restaurant_service()
 
@@ -44,7 +44,7 @@ def create_routes(app: FastAPI):
         except ValueError as e:
             raise HTTPException(status_code=404, detail=str(e))
 
-    @app.patch("/restaurants/{restaurant_id}/menu-items/{menu_item_id}", response_model=MenuItem)
+    @api.patch("/restaurants/{restaurant_id}/menu-items/{menu_item_id}", response_model=MenuItem)
     def update_menu_item(restaurant_id: str, menu_item_id: str, request: MenuItemUpdate):
         restaurant_service = get_restaurant_service()
 
@@ -55,7 +55,7 @@ def create_routes(app: FastAPI):
             raise HTTPException(status_code=404,detail=str(e))
 
 
-    @app.delete("/restaurants/{restaurant_id}/menu-items/{menu_item_id}", status_code=204)
+    @api.delete("/restaurants/{restaurant_id}/menu-items/{menu_item_id}", status_code=204)
     def delete_menu_item(restaurant_id: str, menu_item_id: str):
         restaurant_service = get_restaurant_service()
 
@@ -67,7 +67,7 @@ def create_routes(app: FastAPI):
         except ValueError as e:
             raise HTTPException(status_code=404, detail=str(e))
 
-    @app.get("/restaurants/{restaurant_id}", response_model=Restaurant)
+    @api.get("/restaurants/{restaurant_id}", response_model=Restaurant)
     def get_restaurant(restaurant_id: str):
         restaurant_service = get_restaurant_service()
     
@@ -80,7 +80,7 @@ def create_routes(app: FastAPI):
             raise HTTPException(status_code=500, detail="Invalid JSON data")
 
 
-    @app.post(
+    @api.post(
         "/restaurants",
         response_model=Restaurant,
         status_code=201,
@@ -98,7 +98,7 @@ def create_routes(app: FastAPI):
             raise HTTPException(status_code=409, detail=str(e))
 
 
-    @app.patch(
+    @api.patch(
         "/restaurants/{restaurant_id}",
         response_model=Restaurant,
         summary="Update a restaurant's information",
@@ -119,3 +119,9 @@ def create_routes(app: FastAPI):
 
         except DuplicateRestaurantError as e:
             raise HTTPException(status_code=409, detail=str(e))
+
+
+    @api.get("/", include_in_schema=False)
+    @api.get("/{path:path}", include_in_schema=False)
+    def api_not_found(path: str):
+        raise HTTPException(status_code=404, detail="Not Found")

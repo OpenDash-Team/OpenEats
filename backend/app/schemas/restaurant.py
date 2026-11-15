@@ -2,7 +2,7 @@ from .menu import Menu
 
 from pydantic import BaseModel, Field
 
-from backend.app.core.identifiers import generate_id
+from ..core.identifiers import generate_id
 
 class Restaurant(BaseModel):
     type: str = Field("Restaurant", frozen=True, )

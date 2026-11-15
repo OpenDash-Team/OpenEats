@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    container_name: openeats
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    # Uncomment this if running it in production
+    #restart: unless-stopped

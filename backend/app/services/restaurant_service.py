@@ -1,11 +1,11 @@
-from backend.app.repositories.restaurant_repository import RestaurantRepository
-from backend.app.schemas.restaurant import Restaurant
-from backend.app.schemas.menu_section import MenuSection
-from backend.app.schemas.menu_item import MenuItem
-from backend.app.schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
-from backend.app.schemas.menu import Menu
-from backend.app.schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
-from backend.app.core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
+from ..repositories.restaurant_repository import RestaurantRepository
+from ..schemas.restaurant import Restaurant
+from ..schemas.menu_section import MenuSection
+from ..schemas.menu_item import MenuItem
+from ..schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
+from ..schemas.menu import Menu
+from ..schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
+from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
 
 UNCATEGORIZED_MENU_SECTION_ID = "uncategorized"
 UNCATEGORIZED_MENU_SECTION_NAME = "Uncategorized"

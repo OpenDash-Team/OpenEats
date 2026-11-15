@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from backend.app.core.identifiers import generate_id
+from ..core.identifiers import generate_id
 
 from .menu_section import MenuSection
 
