@@ -1,6 +1,7 @@
 import os
 import shutil
 from pathlib import Path
+import tempfile
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import main
@@ -12,7 +13,7 @@ TEST_DATA = CURRENT_DIR.parent / "tests/test-data"
 #File must be exactly this name to be known as a pytest fixture file.
 
 @pytest.fixture(autouse=True)
-def isolated_data(tmp_path):
+def isolated_data():
     files_to_track = ["restaurants.json"]
     
     for name in files_to_track:
@@ -20,22 +21,23 @@ def isolated_data(tmp_path):
         if not test_file.exists():
             pytest.exit(f"CRITICAL ABORT: Missing required test file '{test_file}'. Please create the test-data folder and add {name}.")
     
-    #Will have all other files needed to copy for temp use later
-    for name in files_to_track:
-        if (REAL_DATA / name).exists():
-            shutil.copy(REAL_DATA / name, tmp_path / name)
-            
-    for name in files_to_track:
-        shutil.copy(TEST_DATA / name, REAL_DATA / name)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        backup_path = Path(temp_dir)
         
-    #Wait until all tests are done
-    yield
-    
-    for name in files_to_track:
-        if (tmp_path / name).exists():
-            shutil.copy(tmp_path / name, REAL_DATA / name)
-        elif (REAL_DATA / name).exists():
-            os.remove(REAL_DATA / name)
+        for name in files_to_track:
+            if (REAL_DATA / name).exists():
+                shutil.copy(REAL_DATA / name, backup_path / name)
+                
+        for name in files_to_track:
+            shutil.copy(TEST_DATA / name, REAL_DATA / name)
+            
+        yield
+        
+        for name in files_to_track:
+            if (backup_path / name).exists():
+                shutil.copy(backup_path / name, REAL_DATA / name)
+            elif (REAL_DATA / name).exists():
+                os.remove(REAL_DATA / name)
 
 @pytest.fixture
 def client():
