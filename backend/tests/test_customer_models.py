@@ -32,6 +32,7 @@ def test_create_keeps_spaces_in_password():
 @pytest.mark.parametrize("field, value", [
     ("email", "not-an-email"),
     ("password", "short"),
+    ("password", "        "),
     ("name", ""),
     ("telephone", "call me"),
 ])

@@ -10,15 +10,17 @@ class CustomerService:
         self.repository: CustomerRepository = repository
 
     def register_customer(self, request: CustomerCreate) -> Customer:
-        customers = self.repository.get_all_customers()
-        self._check_email_not_taken(customers, request.email)
-
-        # The plain password is never stored, only its hash
+        # The plain password is never stored, only its hash. Hashing is slow, so it's done
+        # before taking the lock to keep other requests from waiting on it.
         data = request.model_dump(exclude={"password"})
         new_customer = Customer(**data, hashedPassword=hash_password(request.password))
 
-        customers.append(new_customer)
-        self.repository.save_customers(customers)
+        with self.repository.lock():
+            customers = self.repository.get_all_customers()
+            self._check_email_not_taken(customers, request.email)
+
+            customers.append(new_customer)
+            self.repository.save_customers(customers)
 
         return new_customer
 
@@ -40,31 +42,33 @@ class CustomerService:
         return customer
 
     def update_customer(self, customer_id: str, request: CustomerUpdate) -> Customer:
-        customers = self.repository.get_all_customers()
-        customer = self._find_active(customers, customer_id)
-
         # Fields that were not sent (or sent as null) keep their current value
         changes = request.model_dump(exclude_none=True)
 
-        if "email" in changes:
-            other_customers = [c for c in customers if c.id != customer_id]
-            self._check_email_not_taken(other_customers, changes["email"])
+        with self.repository.lock():
+            customers = self.repository.get_all_customers()
+            customer = self._find_active(customers, customer_id)
 
-        for field, value in changes.items():
-            setattr(customer, field, value)
+            if "email" in changes:
+                other_customers = [c for c in customers if c.id != customer_id]
+                self._check_email_not_taken(other_customers, changes["email"])
 
-        self.repository.save_customers(customers)
+            for field, value in changes.items():
+                setattr(customer, field, value)
+
+            self.repository.save_customers(customers)
 
         return customer
 
     def deactivate_customer(self, customer_id: str) -> None:
         # Soft delete: the account stays in the file so past orders still point to a real customer,
         # but it can't sign in or be used anymore.
-        customers = self.repository.get_all_customers()
-        customer = self._find_active(customers, customer_id)
+        with self.repository.lock():
+            customers = self.repository.get_all_customers()
+            customer = self._find_active(customers, customer_id)
 
-        customer.isActive = False
-        self.repository.save_customers(customers)
+            customer.isActive = False
+            self.repository.save_customers(customers)
 
     def _find_active(self, customers: list[Customer], customer_id: str) -> Customer:
         customer = next((c for c in customers if c.id == customer_id), None)

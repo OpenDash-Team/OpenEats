@@ -1,4 +1,5 @@
-from unittest.mock import Mock
+import threading
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -8,10 +9,12 @@ from backend.app.repositories.customer_repository import CustomerRepository
 from backend.app.schemas.customer import Customer
 from backend.app.schemas.customer_request import CustomerCreate, CustomerUpdate
 from backend.app.services.customer_service import CustomerService
+from backend.app.repositories.customer_repository import CustomerRepository as RealCustomerRepository
 
 
 def make_service(*customers):
-    repository = Mock(spec=CustomerRepository)
+    # MagicMock (not Mock) so `with repository.lock():` works
+    repository = MagicMock(spec=CustomerRepository)
     repository.get_all_customers.return_value = list(customers)
     repository.get_customer_by_id.side_effect = lambda customer_id: next((c for c in customers if c.id == customer_id), None)
     return CustomerService(repository), repository
@@ -124,3 +127,42 @@ def test_deactivate_unknown_customer_raises():
 
     with pytest.raises(CustomerNotFoundError):
         service.deactivate_customer("missing")
+
+
+# Two sign-ups at the same time (regression test for a lost-update bug found in review)
+
+def register_in_parallel(file_path, emails):
+    file_path.write_text("[]")
+    results = []
+
+    def register(email):
+        # A new service + repository per call, like separate requests
+        service = CustomerService(RealCustomerRepository(file_path))
+        try:
+            service.register_customer(CustomerCreate(name="Parallel", email=email, password="password123"))
+            results.append("ok")
+        except DuplicateEmailError:
+            results.append("duplicate")
+
+    threads = [threading.Thread(target=register, args=(email,)) for email in emails]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    return results, RealCustomerRepository(file_path).get_all_customers()
+
+
+def test_parallel_registrations_are_all_saved(tmp_path):
+    results, saved = register_in_parallel(tmp_path / "customers.json", [f"user{n}@example.com" for n in range(8)])
+
+    assert results.count("ok") == 8
+    assert len(saved) == 8
+
+
+def test_parallel_registrations_with_same_email_create_only_one_account(tmp_path):
+    results, saved = register_in_parallel(tmp_path / "customers.json", ["same@example.com"] * 4)
+
+    assert results.count("ok") == 1
+    assert results.count("duplicate") == 3
+    assert len(saved) == 1

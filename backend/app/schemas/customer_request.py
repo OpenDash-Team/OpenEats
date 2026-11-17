@@ -24,6 +24,13 @@ class CustomerCreate(BaseModel):
 
     _lowercase_email = field_validator("email")(normalize_email)
 
+    @field_validator("password")
+    @classmethod
+    def check_password_not_blank(cls, password: str) -> str:
+        if not password.strip():
+            raise ValueError("Password can't be only spaces")
+        return password
+
 
 class CustomerUpdate(BaseModel):
     """Only the fields that are sent get changed. A field left out or sent as null stays the same."""
