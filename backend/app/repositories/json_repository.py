@@ -3,9 +3,15 @@ import json
 from json import JSONDecodeError
 import os
 import tempfile
+import threading
 import warnings
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
+
+# One lock per JSON file, shared by every repository object that points at that file.
+# (A new repository is created for each request, so the lock can't live on the object itself.)
+_file_locks: dict[Path, threading.RLock] = {}
+_file_locks_guard = threading.Lock()
 
 
 class JsonRepository[T: BaseModel]:
@@ -19,6 +25,15 @@ class JsonRepository[T: BaseModel]:
         self.file_path: Path = file_path
         self.model: type[T] = model
         self._list_adapter = TypeAdapter(list[model])
+
+    def lock(self) -> threading.RLock:
+        """Hold this around a load -> change -> save, e.g. `with repository.lock(): ...`.
+
+        Requests run in parallel threads, so without it two requests can both load the file,
+        each add their change, and the second save silently wipes out the first.
+        """
+        with _file_locks_guard:
+            return _file_locks.setdefault(self.file_path.resolve(), threading.RLock())
 
     def _load_all(self) -> list[T]:
         if not self.file_path.exists():
