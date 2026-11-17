@@ -80,3 +80,17 @@ def test_repositories_for_the_same_file_share_one_lock(tmp_path):
 
     assert first.lock() is second.lock()
     assert first.lock() is not other.lock()
+
+
+@pytest.mark.parametrize("error", [TypeError("not JSON serializable"), ValueError("bad value")])
+def test_save_that_fails_while_writing_json_leaves_no_temp_file(tmp_path, error):
+    file_path = tmp_path / "items.json"
+    repo = JsonRepository(file_path, Item)
+    repo._save_all([Item(id="1", name="original")])
+
+    with patch("backend.app.repositories.json_repository.json.dump", side_effect=error):
+        with pytest.raises(type(error)):
+            repo._save_all([Item(id="2", name="new")])
+
+    assert repo._load_all() == [Item(id="1", name="original")]
+    assert list(tmp_path.glob("*.tmp")) == []
