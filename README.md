@@ -65,6 +65,17 @@ mv backend/sample-data backend/data
 Rename-Item backend/sample-data backend/data
 ```
 
+### Demo Accounts
+
+The sample data has two accounts, both with the password `password123`:
+
+| Email | Role |
+|---|---|
+| `customer@openeats.com` | `customer` |
+| `owner@openeats.com` | `owner` |
+
+New registrations are always customers.
+
 ### Running the API
 
 Start the application with:

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from backend.app.repositories.customer_repository import CustomerRepository
 from backend.app.schemas.customer import Customer
 
@@ -31,3 +33,11 @@ def test_ids_stay_the_same_after_reloading(tmp_path):
     reloaded = CustomerRepository(tmp_path / "customers.json")
 
     assert [c.id for c in reloaded.get_all_customers()] == ["c1", "c2"]
+
+
+def test_sample_data_customers_are_valid():
+    sample_file = Path(__file__).resolve().parents[1] / "sample-data" / "customers.json"
+
+    roles = [c.role for c in CustomerRepository(sample_file).get_all_customers()]
+
+    assert sorted(roles) == ["customer", "owner"]

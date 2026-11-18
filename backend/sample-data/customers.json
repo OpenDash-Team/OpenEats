@@ -1,1 +1,22 @@
-[]
+[
+    {
+        "id": "demoCustomer000000001",
+        "name": "Demo Customer",
+        "email": "customer@openeats.com",
+        "hashedPassword": "$argon2id$v=19$m=65536,t=3,p=4$OVNGdn3qFR1JzPTh37pxHA$7Q+73S5XnEGfXxLu9ukB1ykduW9xi89GEmc3Il4jkk0",
+        "telephone": null,
+        "address": "3333 University Way, Kelowna, BC",
+        "role": "customer",
+        "isActive": true
+    },
+    {
+        "id": "demoOwner000000000001",
+        "name": "Demo Owner",
+        "email": "owner@openeats.com",
+        "hashedPassword": "$argon2id$v=19$m=65536,t=3,p=4$uJMwfg1M4n/eWtITM8qiMA$iS0myGXv/RwzsxgN7FZZ4+96KJgnKskIwOBPh5odEpY",
+        "telephone": null,
+        "address": null,
+        "role": "owner",
+        "isActive": true
+    }
+]
