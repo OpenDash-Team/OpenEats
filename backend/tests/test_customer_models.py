@@ -23,6 +23,12 @@ def test_create_stores_email_in_lowercase():
     assert customer.email == "jordan@example.com"
 
 
+def test_create_accepts_password_of_exactly_128_characters():
+    customer = CustomerCreate(**valid_customer(password="a" * 128))
+
+    assert len(customer.password) == 128
+
+
 def test_create_keeps_spaces_in_password():
     customer = CustomerCreate(**valid_customer(password="  spaced out  "))
 
@@ -33,6 +39,7 @@ def test_create_keeps_spaces_in_password():
     ("email", "not-an-email"),
     ("password", "short"),
     ("password", "        "),
+    ("password", "a" * 129),
     ("name", ""),
     ("telephone", "call me"),
 ])
