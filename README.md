@@ -174,6 +174,10 @@ The API provides the following endpoints:
 | POST | `/api/v1/restaurants/{restaurant_id}/menu-items` | `Creates a new menu item. Returns 201, 404 if the restaurant is not found, 422 for invalid input.` |
 | PATCH | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Updates a menu item's fields. Returns 200, 404 if the item or restaurant is not found, 422 for invalid input.` |
 | DELETE | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Deletes a specific menu item. Returns 204 on success, 404 if not found.` |
+| POST | `/api/v1/customers` | `Registers a customer. Returns 201 (without the password), 409 if the email is already registered, 422 for invalid input.` |
+| GET | `/api/v1/customers/me` | `Returns the signed-in customer's info. Returns 401 if not signed in.` |
+| PATCH | `/api/v1/customers/me` | `Updates the signed-in customer's name, email, telephone or delivery address. Returns 200, 401, 409 if the email is taken, 422 for invalid input.` |
+| DELETE | `/api/v1/customers/me` | `Deactivates the signed-in customer's account (kept but marked inactive). Returns 204, 401 if not signed in.` |
 
 
 ## API Documentation

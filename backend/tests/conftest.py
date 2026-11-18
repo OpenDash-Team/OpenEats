@@ -14,7 +14,7 @@ TEST_DATA = CURRENT_DIR.parent / "tests/test-data"
 
 @pytest.fixture(autouse=True)
 def isolated_data():
-    files_to_track = ["restaurants.json"]
+    files_to_track = ["restaurants.json", "customers.json"]
     
     for name in files_to_track:
         test_file = TEST_DATA / name

@@ -1,0 +1,22 @@
+[
+    {
+        "id": "cust000000000000active",
+        "name": "Alex Morgan",
+        "email": "alex@example.com",
+        "hashedPassword": "$argon2id$v=19$m=65536,t=3,p=4$pMImEqYcVJFExSYw9Az4gg$2UD0II/GuSsdSHMbgRxTnuG0e83GvSkr5qu6x+c1BeU",
+        "telephone": "+1-250-555-0111",
+        "address": "1234 University Way, Kelowna, BC",
+        "role": "customer",
+        "isActive": true
+    },
+    {
+        "id": "cust00000000000inactive",
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "hashedPassword": "$argon2id$v=19$m=65536,t=3,p=4$y10GQ6SKAnoDIUU+W419vQ$l7ZAlCATZsgNcxLwWaaPPq+C6qxsBiSgWkNw4rkDg60",
+        "telephone": null,
+        "address": null,
+        "role": "customer",
+        "isActive": false
+    }
+]
