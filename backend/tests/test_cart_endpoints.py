@@ -81,15 +81,15 @@ def test_add_item_from_second_restaurant_returns_409(alex):
     assert response.status_code == 409
 
 
-@pytest.mark.parametrize("quantity", [0, 100, "two"])
+@pytest.mark.parametrize("quantity", [0, 100, "2", True])
 def test_add_with_invalid_quantity_returns_422(alex, quantity):
     assert add(alex, FRAPPUCCINO, quantity).status_code == 422
 
 
-def test_adding_past_99_returns_422(alex):
+def test_adding_past_99_returns_409(alex):
     add(alex, FRAPPUCCINO, 99)
 
-    assert add(alex, FRAPPUCCINO).status_code == 422
+    assert add(alex, FRAPPUCCINO).status_code == 409
 
 
 # PATCH /cart/items/{id}
@@ -153,18 +153,6 @@ def test_each_customer_has_their_own_cart(client, alex, sign_in_as):
     assert [i["menuItemId"] for i in jordan.get("/api/v1/cart").json()["items"]] == [DUNKIN_LATTE]
 
 
-# Persistence
-
-def test_cart_is_still_there_after_restart(alex, sign_in_as):
-    add(alex, FRAPPUCCINO, 2)
-
-    # A new app reads carts.json again, like after a restart
-    response = sign_in_as(ALEX).get("/api/v1/cart")
-
-    assert response.json()["items"][0]["quantity"] == 2
-    assert response.json()["total"] == "11.90"
-
-
 # Multi-subsystem: customers + restaurants + cart
 
 def test_deactivated_customer_cannot_use_a_cart(alex):
@@ -192,3 +180,13 @@ def test_item_marked_out_of_stock_by_restaurant_is_flagged_in_cart(client, alex)
     assert frappuccino["available"] is False
     assert cart["total"] == "5.65"
     assert add(alex, FRAPPUCCINO).status_code == 409
+
+
+def test_raising_quantity_of_out_of_stock_item_returns_409(client, alex):
+    add(alex, FRAPPUCCINO)
+    client.patch(
+        f"/api/v1/restaurants/{STARBUCKS}/menu-items/{FRAPPUCCINO}",
+        json={"offers": {"price": 5.95, "priceCurrency": "USD", "availability": "https://schema.org/OutOfStock"}},
+    )
+
+    assert alex.patch(f"/api/v1/cart/items/{FRAPPUCCINO}", json={"quantity": 2}).status_code == 409

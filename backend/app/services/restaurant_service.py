@@ -75,8 +75,7 @@ class RestaurantService:
         return restaurant
 
     def menu_items_by_id(self) -> dict[str, tuple[str, MenuItem]]:
-        """Every menu item of every restaurant, by item id, together with the id of its restaurant.
-        Used by the cart (and later checkout) to look up current prices and availability."""
+        """Maps each menu item id to (restaurant id, menu item), across all restaurants."""
         menu_items = {}
 
         for restaurant in self.repository.get_all_restaurants():

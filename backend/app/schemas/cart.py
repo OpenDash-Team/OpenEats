@@ -5,12 +5,14 @@ from pydantic import BaseModel, Field
 
 from ..core.identifiers import generate_id
 
+MAX_QUANTITY = 99
+
 CartStatus = Literal["active", "checkedOut"]
-Quantity = Annotated[int, Field(ge=1, le=99)]
+Quantity = Annotated[int, Field(strict=True, ge=1, le=MAX_QUANTITY)]  # strict: "2" or true are rejected
 
 
 class CartItem(BaseModel):
-    """One line in a stored cart. Only the menu item id is stored, so prices always come from the current menu."""
+    """Only the item id is stored, so prices always come from the current menu."""
 
     menuItemId: str
     quantity: Quantity
@@ -21,9 +23,9 @@ class Cart(BaseModel):
 
     id: str = Field(default_factory=generate_id, frozen=True)
     customerId: str
-    restaurantId: str | None = None  # set by the first item, a cart can only hold items from one restaurant
+    restaurantId: str | None = None  # a cart only holds items from one restaurant
     items: list[CartItem] = []
-    status: CartStatus = "active"  # checkout will set this to "checkedOut"
+    status: CartStatus = "active"
 
 
 class CartItemResponse(BaseModel):

@@ -9,7 +9,7 @@ from ..core.exceptions import (
     MenuItemUnavailableError,
 )
 from ..repositories.cart_repository import CartRepository
-from ..schemas.cart import Cart, CartItem, CartItemResponse, CartResponse
+from ..schemas.cart import MAX_QUANTITY, Cart, CartItem, CartItemResponse, CartResponse
 from ..schemas.cart_request import CartItemAdd, CartItemUpdate
 from ..schemas.customer import Customer
 from ..schemas.item_availability import ItemAvailability
@@ -17,11 +17,9 @@ from ..schemas.menu_item import MenuItem
 from ..schemas.offer import Offer
 from .restaurant_service import RestaurantService
 
-MAX_QUANTITY = 99
-
 
 def round_money(amount: Decimal) -> Decimal:
-    # Normal rounding to cents (0.125 -> 0.13). Decimal's default would round half to even (0.12).
+    # Normal rounding to cents (0.125 -> 0.13), Decimal rounds half to even by default
     return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
@@ -58,12 +56,13 @@ class CartService:
             if cart.items and cart.restaurantId != restaurant_id:
                 raise DifferentRestaurantError("Your cart has items from another restaurant. Clear it first to order from this one")
 
-            cart_item = self._find_cart_item_or_none(cart, menu_item.id)
+            cart_item = next((item for item in cart.items if item.menuItemId == menu_item.id), None)
 
             if cart_item is None:
                 cart.items.append(CartItem(menuItemId=menu_item.id, quantity=request.quantity))
+            elif cart_item.quantity + request.quantity > MAX_QUANTITY:
+                raise CartQuantityError(f"You can have at most {MAX_QUANTITY} of one item in your cart")
             else:
-                self._check_quantity(cart_item.quantity + request.quantity)
                 cart_item.quantity += request.quantity
 
             cart.restaurantId = restaurant_id
@@ -78,10 +77,9 @@ class CartService:
 
         with self.repository.lock():
             carts = self.repository.get_all_carts()
-            cart = self._find_or_create_active_cart(carts, customer.id)
-            cart_item = self._find_cart_item(cart, menu_item_id)
+            cart, cart_item = self._find_cart_item(carts, customer.id, menu_item_id)
 
-            # Ordering more needs the item to still be available. Going down is always fine.
+            # Ordering more needs the item to still be available, going down is always fine
             if request.quantity > cart_item.quantity:
                 self._find_orderable_menu_item(menu_items, menu_item_id)
 
@@ -91,13 +89,12 @@ class CartService:
         return self._to_response(cart, menu_items)
 
     def remove_item(self, customer: Customer, menu_item_id: str) -> CartResponse:
-        # Removing still works for items that went out of stock or were deleted from the menu
+        # Works even if the item went out of stock or was deleted from the menu
         self._check_customer_active(customer)
 
         with self.repository.lock():
             carts = self.repository.get_all_carts()
-            cart = self._find_or_create_active_cart(carts, customer.id)
-            cart_item = self._find_cart_item(cart, menu_item_id)
+            cart, cart_item = self._find_cart_item(carts, customer.id, menu_item_id)
 
             cart.items.remove(cart_item)
             if not cart.items:
@@ -118,10 +115,10 @@ class CartService:
             cart.restaurantId = None
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, {})  # the cart is empty, so there are no menu items to price
+        return self._to_response(cart, {})  # empty cart, nothing to price
 
     def _to_response(self, cart: Cart, menu_items: dict[str, tuple[str, MenuItem]]) -> CartResponse:
-        """Builds the cart with current menu prices. Items that can't be ordered are shown but not counted."""
+        """Prices the cart with current menu prices. Items that can't be ordered are shown but not counted."""
         response_items = []
         subtotal = Decimal("0.00")
         currency = None
@@ -153,16 +150,18 @@ class CartService:
             items=response_items,
             currency=currency,
             subtotal=subtotal,
-            total=subtotal,  # M2 has no fees or tax. If the team adds them, they go here
+            total=subtotal,  # no fees or tax yet
         )
 
     def _check_customer_active(self, customer: Customer) -> None:
-        # M2 rule: a deactivated customer can't create or change a cart
         if not customer.isActive:
             raise CustomerDeactivatedError(f"Customer with id '{customer.id}' is deactivated")
 
+    def _find_active_cart(self, carts: list[Cart], customer_id: str) -> Cart | None:
+        # Each customer has at most one active cart
+        return next((cart for cart in carts if cart.customerId == customer_id and cart.status == "active"), None)
+
     def _find_or_create_active_cart(self, carts: list[Cart], customer_id: str) -> Cart:
-        # Each customer has at most one active cart, so a new one is only made if there isn't one
         cart = self._find_active_cart(carts, customer_id)
 
         if cart is None:
@@ -171,8 +170,14 @@ class CartService:
 
         return cart
 
-    def _find_active_cart(self, carts: list[Cart], customer_id: str) -> Cart | None:
-        return next((cart for cart in carts if cart.customerId == customer_id and cart.status == "active"), None)
+    def _find_cart_item(self, carts: list[Cart], customer_id: str, menu_item_id: str) -> tuple[Cart, CartItem]:
+        cart = self._find_active_cart(carts, customer_id)
+        cart_item = next((item for item in cart.items if item.menuItemId == menu_item_id), None) if cart else None
+
+        if cart_item is None:
+            raise CartItemNotFoundError(f"Menu item with id '{menu_item_id}' is not in your cart")
+
+        return cart, cart_item
 
     def _find_orderable_menu_item(self, menu_items: dict[str, tuple[str, MenuItem]], menu_item_id: str) -> tuple[str, MenuItem]:
         if menu_item_id not in menu_items:
@@ -185,19 +190,6 @@ class CartService:
         return restaurant_id, menu_item
 
     def _in_stock_offer(self, menu_item: MenuItem) -> Offer | None:
-        # A menu item can have one offer or a list of them; the first one in stock sets the price
+        # An item can have one offer or a list, the first one in stock sets the price
         offers = menu_item.offers if isinstance(menu_item.offers, list) else [menu_item.offers]
         return next((offer for offer in offers if offer.availability == ItemAvailability.IN_STOCK), None)
-
-    def _find_cart_item_or_none(self, cart: Cart, menu_item_id: str) -> CartItem | None:
-        return next((item for item in cart.items if item.menuItemId == menu_item_id), None)
-
-    def _find_cart_item(self, cart: Cart, menu_item_id: str) -> CartItem:
-        cart_item = self._find_cart_item_or_none(cart, menu_item_id)
-        if cart_item is None:
-            raise CartItemNotFoundError(f"Menu item with id '{menu_item_id}' is not in your cart")
-        return cart_item
-
-    def _check_quantity(self, quantity: int) -> None:
-        if quantity > MAX_QUANTITY:
-            raise CartQuantityError(f"You can have at most {MAX_QUANTITY} of one item in your cart")

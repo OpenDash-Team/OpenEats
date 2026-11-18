@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, APIRouter
+from fastapi import FastAPI, HTTPException, Depends, APIRouter, Path
 from json import JSONDecodeError
 
 from ..core.dependencies import get_restaurant_service, get_customer_service, get_current_customer, get_cart_service
@@ -206,10 +206,13 @@ def create_routes(api: FastAPI | APIRouter):
         "/cart",
         response_model=CartResponse,
         summary="Get my cart",
-        responses={401: {"description": "Not signed in"}},
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
     )
-    def get_cart(current_customer: Customer = Depends(get_current_customer), cart_service: CartService = Depends(get_cart_service)):
-        """Returns the signed-in customer's active cart (an empty one is created if they don't have one),
+    def get_cart(
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Returns the signed-in customer's active cart (an empty one is created the first time),
         with current prices and the subtotal and total calculated by the backend."""
         try:
             return cart_service.get_cart(current_customer)
@@ -223,13 +226,16 @@ def create_routes(api: FastAPI | APIRouter):
         response_model=CartResponse,
         summary="Add a menu item to my cart",
         responses={
-            401: {"description": "Not signed in"},
-            404: {"description": "No menu item has this id"},
-            409: {"description": "The item is out of stock, or the cart has items from another restaurant"},
-            422: {"description": "Invalid quantity, or more than 99 of one item"},
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            404: {"model": ErrorResponse, "description": "No menu item has this id"},
+            409: {"model": ErrorResponse, "description": "The item is out of stock, the cart has items from another restaurant, or it would go over 99"},
         },
     )
-    def add_cart_item(request: CartItemAdd, current_customer: Customer = Depends(get_current_customer), cart_service: CartService = Depends(get_cart_service)):
+    def add_cart_item(
+        request: CartItemAdd,
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
         """Adds the item to the cart. If it's already there, its quantity goes up instead."""
         try:
             return cart_service.add_item(current_customer, request)
@@ -240,11 +246,8 @@ def create_routes(api: FastAPI | APIRouter):
         except MenuItemNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e))
 
-        except (MenuItemUnavailableError, DifferentRestaurantError) as e:
+        except (MenuItemUnavailableError, DifferentRestaurantError, CartQuantityError) as e:
             raise HTTPException(status_code=409, detail=str(e))
-
-        except CartQuantityError as e:
-            raise HTTPException(status_code=422, detail=str(e))
 
 
     @api.patch(
@@ -252,12 +255,18 @@ def create_routes(api: FastAPI | APIRouter):
         response_model=CartResponse,
         summary="Change the quantity of an item in my cart",
         responses={
-            401: {"description": "Not signed in"},
-            404: {"description": "The item is not in the cart, or is no longer on the menu"},
-            409: {"description": "The item is out of stock, so its quantity can only go down"},
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            404: {"model": ErrorResponse, "description": "The item is not in the cart, or is no longer on the menu"},
+            409: {"model": ErrorResponse, "description": "The item is out of stock, so its quantity can only go down"},
         },
     )
-    def update_cart_item(menu_item_id: str, request: CartItemUpdate, current_customer: Customer = Depends(get_current_customer), cart_service: CartService = Depends(get_cart_service)):
+    def update_cart_item(
+        request: CartItemUpdate,
+        menu_item_id: str = Path(description="Id of the menu item in the cart"),
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Sets the item's quantity (1-99). To take it out of the cart, use DELETE instead."""
         try:
             return cart_service.update_item_quantity(current_customer, menu_item_id, request)
 
@@ -275,9 +284,17 @@ def create_routes(api: FastAPI | APIRouter):
         "/cart/items/{menu_item_id}",
         response_model=CartResponse,
         summary="Remove an item from my cart",
-        responses={401: {"description": "Not signed in"}, 404: {"description": "The item is not in the cart"}},
+        responses={
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            404: {"model": ErrorResponse, "description": "The item is not in the cart"},
+        },
     )
-    def remove_cart_item(menu_item_id: str, current_customer: Customer = Depends(get_current_customer), cart_service: CartService = Depends(get_cart_service)):
+    def remove_cart_item(
+        menu_item_id: str = Path(description="Id of the menu item in the cart"),
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Removes the item and returns the updated cart. Works for items that are out of stock or no longer on the menu."""
         try:
             return cart_service.remove_item(current_customer, menu_item_id)
 
@@ -292,10 +309,13 @@ def create_routes(api: FastAPI | APIRouter):
         "/cart",
         response_model=CartResponse,
         summary="Clear my cart",
-        responses={401: {"description": "Not signed in"}},
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
     )
-    def clear_cart(current_customer: Customer = Depends(get_current_customer), cart_service: CartService = Depends(get_cart_service)):
-        """Removes every item. The cart itself stays, empty, and can be used for any restaurant again."""
+    def clear_cart(
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Removes every item. The cart stays, empty, and can be used for any restaurant again."""
         try:
             return cart_service.clear_cart(current_customer)
 
