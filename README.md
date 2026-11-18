@@ -178,6 +178,11 @@ The API provides the following endpoints:
 | GET | `/api/v1/customers/me` | `Returns the signed-in customer's info. Returns 401 if not signed in.` |
 | PATCH | `/api/v1/customers/me` | `Updates the signed-in customer's name, email, telephone or delivery address. Returns 200, 401, 409 if the email is taken, 422 for invalid input.` |
 | DELETE | `/api/v1/customers/me` | `Deactivates the signed-in customer's account (kept but marked inactive). Returns 204, 401 if not signed in.` |
+| GET | `/api/v1/cart` | `Returns the signed-in customer's active cart (creates an empty one if needed) with current prices, subtotal and total. Returns 401 if not signed in.` |
+| POST | `/api/v1/cart/items` | `Adds a menu item (or increases its quantity). Returns 200, 404 for an unknown item, 409 if out of stock or from a different restaurant, 422 for an invalid quantity.` |
+| PATCH | `/api/v1/cart/items/{menu_item_id}` | `Changes an item's quantity (1-99). Returns 200, 404 if the item isn't in the cart, 409 if it's out of stock now.` |
+| DELETE | `/api/v1/cart/items/{menu_item_id}` | `Removes an item from the cart. Returns 200, 404 if the item isn't in the cart.` |
+| DELETE | `/api/v1/cart` | `Clears the cart. Returns 200 with the empty cart.` |
 
 
 ## API Documentation

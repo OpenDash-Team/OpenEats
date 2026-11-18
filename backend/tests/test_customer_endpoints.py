@@ -1,10 +1,6 @@
 import pytest
-from fastapi import HTTPException
-from fastapi.testclient import TestClient
 
-from backend.app.core.dependencies import get_current_customer, get_customer_service
-from backend.app.core.exceptions import CustomerDeactivatedError, CustomerNotFoundError
-from backend.app.main import main
+from backend.tests.conftest import client_signed_in_as
 
 ACTIVE_CUSTOMER_ID = "cust000000000000active"  # Alex Morgan in test-data/customers.json
 
@@ -12,20 +8,6 @@ ACTIVE_CUSTOMER_ID = "cust000000000000active"  # Alex Morgan in test-data/custom
 def new_customer(**changes):
     data = {"name": "Jordan Smith", "email": "jordan@example.com", "password": "password123"}
     return {**data, **changes}
-
-
-def client_signed_in_as(customer_id):
-    # Login (JWT) is a separate task, so these tests pretend the request is signed in
-    # by replacing get_current_customer, the same way the real one will look the customer up.
-    def fake_current_customer():
-        try:
-            return get_customer_service().get_active_customer(customer_id)
-        except (CustomerNotFoundError, CustomerDeactivatedError):
-            raise HTTPException(status_code=401, detail="Not authenticated")
-
-    app = main()
-    app.dependency_overrides[get_current_customer] = fake_current_customer
-    return TestClient(app)
 
 
 @pytest.fixture

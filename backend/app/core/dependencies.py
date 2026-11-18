@@ -4,8 +4,10 @@ from fastapi import HTTPException, status
 
 from ..services.restaurant_service import RestaurantService
 from ..services.customer_service import CustomerService
+from ..services.cart_service import CartService
 from ..repositories.restaurant_repository import RestaurantRepository
 from ..repositories.customer_repository import CustomerRepository
+from ..repositories.cart_repository import CartRepository
 from ..schemas.customer import Customer
 
 
@@ -24,6 +26,10 @@ def get_restaurant_service():
 def get_customer_service() -> CustomerService:
     customer_repository = CustomerRepository(get_data_dir() / "customers.json")
     return CustomerService(customer_repository)
+
+def get_cart_service() -> CartService:
+    cart_repository = CartRepository(get_data_dir() / "carts.json")
+    return CartService(cart_repository, get_restaurant_service())
 
 def get_current_customer() -> Customer:
     """Returns the signed-in customer for protected endpoints.
