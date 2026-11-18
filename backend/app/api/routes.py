@@ -1,14 +1,18 @@
 from fastapi import FastAPI, HTTPException, Depends, APIRouter
 from json import JSONDecodeError
 
-from ..core.dependencies import get_restaurant_service
+from ..core.dependencies import get_restaurant_service, get_customer_service, get_current_customer
 from ..schemas.restaurant import Restaurant
 from ..schemas.restaurant_query import RestaurantQuery
 from ..services.restaurant_service import RestaurantService
 from ..schemas.menu_item import MenuItem
 from ..schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
 from ..schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
-from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
+from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError, DuplicateEmailError, CustomerNotFoundError, CustomerDeactivatedError
+from ..schemas.customer import Customer, CustomerResponse
+from ..schemas.error import ErrorResponse
+from ..schemas.customer_request import CustomerCreate, CustomerUpdate
+from ..services.customer_service import CustomerService
 
 def create_routes(api: FastAPI | APIRouter):
     @api.get("/health")
@@ -119,6 +123,76 @@ def create_routes(api: FastAPI | APIRouter):
 
         except DuplicateRestaurantError as e:
             raise HTTPException(status_code=409, detail=str(e))
+
+
+    @api.post(
+        "/customers",
+        response_model=CustomerResponse,
+        status_code=201,
+        summary="Register a customer",
+        responses={409: {"model": ErrorResponse, "description": "A customer with this email already exists"}},
+    )
+    def register_customer(request: CustomerCreate, customer_service: CustomerService = Depends(get_customer_service)):
+        """Creates a new customer account. The password is stored hashed and never returned."""
+        try:
+            return customer_service.register_customer(request)
+
+        except DuplicateEmailError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
+
+    @api.get(
+        "/customers/me",
+        response_model=CustomerResponse,
+        summary="Get the signed-in customer's info",
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
+    )
+    def get_my_customer_info(current_customer: Customer = Depends(get_current_customer)):
+        """Returns the customer the request is signed in as. The password hash is never included."""
+        return current_customer
+
+
+    @api.patch(
+        "/customers/me",
+        response_model=CustomerResponse,
+        summary="Update the signed-in customer's info and delivery address",
+        responses={
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            409: {"model": ErrorResponse, "description": "Another customer already uses this email"},
+        },
+    )
+    def update_my_customer_info(
+        request: CustomerUpdate,
+        current_customer: Customer = Depends(get_current_customer),
+        customer_service: CustomerService = Depends(get_customer_service),
+    ):
+        """Changes only the fields that are sent. The password, role and id can't be changed here."""
+        try:
+            return customer_service.update_customer(current_customer.id, request)
+
+        except DuplicateEmailError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
+        except (CustomerNotFoundError, CustomerDeactivatedError) as e:
+            raise HTTPException(status_code=401, detail=str(e))
+
+
+    @api.delete(
+        "/customers/me",
+        status_code=204,
+        summary="Deactivate the signed-in customer's account",
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
+    )
+    def deactivate_my_account(
+        current_customer: Customer = Depends(get_current_customer),
+        customer_service: CustomerService = Depends(get_customer_service),
+    ):
+        """The account is kept (so past orders stay valid) but marked inactive, so it can't be used again."""
+        try:
+            customer_service.deactivate_customer(current_customer.id)
+
+        except (CustomerNotFoundError, CustomerDeactivatedError) as e:
+            raise HTTPException(status_code=401, detail=str(e))
 
 
     @api.get("/", include_in_schema=False)
