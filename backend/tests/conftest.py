@@ -48,18 +48,22 @@ def client():
     return TestClient(app)
 
 
-def client_signed_in_as(customer_id):
-    """A test client where requests count as signed in as this customer.
+@pytest.fixture
+def sign_in_as():
+    """Gives a function that makes a test client signed in as the given customer id.
 
     Login (JWT) is a separate task, so this replaces get_current_customer the same way the
     real one will work: look the customer up and answer 401 if they're missing or deactivated.
     """
-    def fake_current_customer():
-        try:
-            return get_customer_service().get_active_customer(customer_id)
-        except (CustomerNotFoundError, CustomerDeactivatedError):
-            raise HTTPException(status_code=401, detail="Not authenticated")
+    def make_client(customer_id):
+        def fake_current_customer():
+            try:
+                return get_customer_service().get_active_customer(customer_id)
+            except (CustomerNotFoundError, CustomerDeactivatedError):
+                raise HTTPException(status_code=401, detail="Not authenticated")
 
-    app = main()
-    app.dependency_overrides[get_current_customer] = fake_current_customer
-    return TestClient(app)
+        app = main()
+        app.dependency_overrides[get_current_customer] = fake_current_customer
+        return TestClient(app)
+
+    return make_client

@@ -1,7 +1,5 @@
 import pytest
 
-from backend.tests.conftest import client_signed_in_as
-
 ALEX = "cust000000000000active"  # active customer in test-data/customers.json
 
 # Items in test-data/restaurants.json
@@ -12,8 +10,8 @@ DUNKIN_LATTE = "AYdIdKXXtZvNCKVy7Z6a1"  # Dunkin, 5.49
 
 
 @pytest.fixture
-def alex():
-    return client_signed_in_as(ALEX)
+def alex(sign_in_as):
+    return sign_in_as(ALEX)
 
 
 def add(client, menu_item_id, quantity=1):
@@ -30,9 +28,9 @@ def add(client, menu_item_id, quantity=1):
     ("delete", f"/api/v1/cart/items/{FRAPPUCCINO}"),
 ])
 def test_cart_endpoints_need_sign_in(client, method, path):
-    kwargs = {"json": {"menuItemId": FRAPPUCCINO, "quantity": 1}} if method in ("post", "patch") else {}
+    body = {"menuItemId": FRAPPUCCINO, "quantity": 1} if method in ("post", "patch") else None
 
-    response = getattr(client, method)(path, **kwargs)
+    response = client.request(method, path, json=body)
 
     assert response.status_code == 401
 
@@ -106,6 +104,13 @@ def test_update_quantity(alex):
     assert response.json()["total"] == "17.85"
 
 
+@pytest.mark.parametrize("quantity", [0, 100])
+def test_update_with_invalid_quantity_returns_422(alex, quantity):
+    add(alex, FRAPPUCCINO)
+
+    assert alex.patch(f"/api/v1/cart/items/{FRAPPUCCINO}", json={"quantity": quantity}).status_code == 422
+
+
 def test_update_item_not_in_cart_returns_404(alex):
     assert alex.patch(f"/api/v1/cart/items/{FRAPPUCCINO}", json={"quantity": 3}).status_code == 404
 
@@ -137,13 +142,24 @@ def test_clear_cart_then_order_from_another_restaurant(alex):
     assert add(alex, DUNKIN_LATTE).status_code == 200
 
 
+def test_each_customer_has_their_own_cart(client, alex, sign_in_as):
+    add(alex, FRAPPUCCINO, 2)
+    jordan_id = client.post("/api/v1/customers", json={"name": "Jordan", "email": "jordan@example.com", "password": "password123"}).json()["id"]
+    jordan = sign_in_as(jordan_id)
+
+    add(jordan, DUNKIN_LATTE)
+
+    assert [i["menuItemId"] for i in alex.get("/api/v1/cart").json()["items"]] == [FRAPPUCCINO]
+    assert [i["menuItemId"] for i in jordan.get("/api/v1/cart").json()["items"]] == [DUNKIN_LATTE]
+
+
 # Persistence
 
-def test_cart_is_still_there_after_restart(alex):
+def test_cart_is_still_there_after_restart(alex, sign_in_as):
     add(alex, FRAPPUCCINO, 2)
 
     # A new app reads carts.json again, like after a restart
-    response = client_signed_in_as(ALEX).get("/api/v1/cart")
+    response = sign_in_as(ALEX).get("/api/v1/cart")
 
     assert response.json()["items"][0]["quantity"] == 2
     assert response.json()["total"] == "11.90"
@@ -165,10 +181,11 @@ def test_item_marked_out_of_stock_by_restaurant_is_flagged_in_cart(client, alex)
     add(alex, DOLCE_LATTE)
 
     # The restaurant marks the frappuccino out of stock through the menu item endpoint
-    client.patch(
+    response = client.patch(
         f"/api/v1/restaurants/{STARBUCKS}/menu-items/{FRAPPUCCINO}",
         json={"offers": {"price": 5.95, "priceCurrency": "USD", "availability": "https://schema.org/OutOfStock"}},
     )
+    assert response.status_code == 200
 
     cart = alex.get("/api/v1/cart").json()
     frappuccino = next(i for i in cart["items"] if i["menuItemId"] == FRAPPUCCINO)

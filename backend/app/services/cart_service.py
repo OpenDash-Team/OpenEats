@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from ..core.exceptions import (
     CartItemNotFoundError,
@@ -18,7 +18,11 @@ from ..schemas.offer import Offer
 from .restaurant_service import RestaurantService
 
 MAX_QUANTITY = 99
-CENT = Decimal("0.01")
+
+
+def round_money(amount: Decimal) -> Decimal:
+    # Normal rounding to cents (0.125 -> 0.13). Decimal's default would round half to even (0.12).
+    return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 class CartService:
@@ -35,7 +39,8 @@ class CartService:
             cart = self._find_active_cart(carts, customer.id)
 
             if cart is None:
-                cart = self._find_or_create_active_cart(carts, customer.id)
+                cart = Cart(customerId=customer.id)
+                carts.append(cart)
                 self.repository.save_carts(carts)
 
         return self._to_response(cart, self.restaurant_service.menu_items_by_id())
@@ -76,8 +81,9 @@ class CartService:
             cart = self._find_or_create_active_cart(carts, customer.id)
             cart_item = self._find_cart_item(cart, menu_item_id)
 
-            # Changing the quantity is ordering more of it, so it has to still be available
-            self._find_orderable_menu_item(menu_items, menu_item_id)
+            # Ordering more needs the item to still be available. Going down is always fine.
+            if request.quantity > cart_item.quantity:
+                self._find_orderable_menu_item(menu_items, menu_item_id)
 
             cart_item.quantity = request.quantity
             self.repository.save_carts(carts)
@@ -112,17 +118,12 @@ class CartService:
             cart.restaurantId = None
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, {})
-
-    def calculate_total(self, subtotal: Decimal) -> Decimal:
-        # M2 only asks for a subtotal and a total worked out by the backend. If we add a delivery
-        # fee or tax later, this is the only place that needs to change (checkout can reuse it).
-        return subtotal
+        return self._to_response(cart, {})  # the cart is empty, so there are no menu items to price
 
     def _to_response(self, cart: Cart, menu_items: dict[str, tuple[str, MenuItem]]) -> CartResponse:
         """Builds the cart with current menu prices. Items that can't be ordered are shown but not counted."""
         response_items = []
-        subtotal = Decimal("0")
+        subtotal = Decimal("0.00")
         currency = None
 
         for cart_item in cart.items:
@@ -130,9 +131,9 @@ class CartService:
             offer = self._in_stock_offer(menu_item) if menu_item is not None else None
 
             if offer is None:
-                line_total = Decimal("0")
+                line_total = Decimal("0.00")
             else:
-                line_total = (offer.price * cart_item.quantity).quantize(CENT)
+                line_total = round_money(offer.price * cart_item.quantity)
                 subtotal += line_total
                 currency = offer.priceCurrency
 
@@ -145,8 +146,6 @@ class CartService:
                 available=offer is not None,
             ))
 
-        subtotal = subtotal.quantize(CENT)
-
         return CartResponse(
             id=cart.id,
             customerId=cart.customerId,
@@ -154,7 +153,7 @@ class CartService:
             items=response_items,
             currency=currency,
             subtotal=subtotal,
-            total=self.calculate_total(subtotal).quantize(CENT),
+            total=subtotal,  # M2 has no fees or tax. If the team adds them, they go here
         )
 
     def _check_customer_active(self, customer: Customer) -> None:

@@ -2,6 +2,11 @@ import pytest
 from unittest.mock import Mock
 
 from backend.app.core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
+from backend.app.repositories.restaurant_repository import RestaurantRepository
+from backend.app.schemas.menu import Menu
+from backend.app.schemas.menu_item import MenuItem
+from backend.app.schemas.menu_section import MenuSection
+from backend.app.schemas.offer import Offer
 from backend.app.schemas.restaurant import Restaurant
 from backend.app.schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
 from backend.app.services.restaurant_service import RestaurantService
@@ -119,11 +124,6 @@ def test_update_with_its_own_name_and_address_is_allowed(service):
 # menu_items_by_id (used by the cart)
 
 def test_menu_items_by_id_finds_items_in_nested_sections():
-    from backend.app.schemas.menu import Menu
-    from backend.app.schemas.menu_item import MenuItem
-    from backend.app.schemas.menu_section import MenuSection
-    from backend.app.schemas.offer import Offer
-    from backend.app.repositories.restaurant_repository import RestaurantRepository
 
     def item(item_id):
         return MenuItem(id=item_id, name=item_id, suitableForDiet=[], offers=Offer(price="1.00", priceCurrency="CAD", availability="https://schema.org/InStock"))

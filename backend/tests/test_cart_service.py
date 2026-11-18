@@ -236,6 +236,48 @@ def test_out_of_stock_item_can_be_removed_but_not_increased(service, files, alex
     assert service.remove_item(alex, "burger").items == []
 
 
+def test_lowering_quantity_of_out_of_stock_item_is_allowed(service, files, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger", quantity=3))
+    set_availability(files[0], "burger", availability=OUT_OF_STOCK)
+
+    cart = service.update_item_quantity(alex, "burger", CartItemUpdate(quantity=1))
+
+    assert cart.items[0].quantity == 1
+
+
+def test_item_deleted_from_menu_is_flagged_and_can_be_removed(service, files, alex):
+    restaurants, _ = files
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+    service.add_item(alex, CartItemAdd(menuItemId="fries"))
+
+    all_restaurants = restaurants.get_all_restaurants()
+    section = all_restaurants[0].hasMenu.hasMenuSection[0]
+    section.hasMenuItem = [item for item in section.hasMenuItem if item.id != "burger"]
+    restaurants.save_restaurants(all_restaurants)
+
+    cart = service.get_cart(alex)
+    burger = next(i for i in cart.items if i.menuItemId == "burger")
+    assert burger.name is None
+    assert burger.available is False
+    assert cart.subtotal == Decimal("3.50")
+
+    with pytest.raises(MenuItemNotFoundError):
+        service.update_item_quantity(alex, "burger", CartItemUpdate(quantity=2))
+
+    assert [i.menuItemId for i in service.remove_item(alex, "burger").items] == ["fries"]
+
+
+def test_money_is_rounded_half_up_to_cents(files, alex):
+    restaurants, carts = files
+    restaurants.save_restaurants([restaurant("candy-shop", menu_item("candy", "0.125"))])
+    service = CartService(carts, RestaurantService(restaurants))
+
+    cart = service.add_item(alex, CartItemAdd(menuItemId="candy"))
+
+    assert cart.items[0].lineTotal == Decimal("0.13")
+    assert cart.total == Decimal("0.13")
+
+
 # customers (multi-subsystem rule)
 
 @pytest.mark.parametrize("action", [
