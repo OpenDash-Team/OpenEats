@@ -1,5 +1,7 @@
-from ..core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError
-from ..core.security import hash_password
+from backend.app.schemas.login_request import LoginRequest
+
+from ..core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError, InvalidCredentialsError
+from ..core.security import hash_password, verify_password
 from ..repositories.customer_repository import CustomerRepository
 from ..schemas.customer import Customer
 from ..schemas.customer_request import CustomerCreate, CustomerUpdate
@@ -82,3 +84,16 @@ class CustomerService:
         # Deactivated accounts still hold their email, so it can't be reused for a new account
         if any(customer.email == email.lower() for customer in customers):
             raise DuplicateEmailError(f"A customer with email '{email}' already exists")
+    
+    def login_customer(self, request: LoginRequest) -> Customer:
+        email = request.email.lower()
+        customer = self.repository.get_customer_by_email(email)
+
+        if customer is None:
+            raise InvalidCredentialsError()
+        if not verify_password(request.password, customer.hashedPassword):
+            raise InvalidCredentialsError()
+        if not customer.isActive:
+            raise CustomerDeactivatedError(f"Customer with email '{email}' has been deactivated")
+
+        return customer

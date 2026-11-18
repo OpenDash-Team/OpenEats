@@ -8,10 +8,13 @@ from ..services.restaurant_service import RestaurantService
 from ..schemas.menu_item import MenuItem
 from ..schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
 from ..schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
-from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError, DuplicateEmailError, CustomerNotFoundError, CustomerDeactivatedError
+from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError, DuplicateEmailError, CustomerNotFoundError, CustomerDeactivatedError, InvalidCredentialsError, NotLoggedInError
 from ..schemas.customer import Customer, CustomerResponse
 from ..schemas.customer_request import CustomerCreate, CustomerUpdate
 from ..services.customer_service import CustomerService
+from ..schemas.login_request import LoginRequest, LoginResponse
+from ..schemas.token import Token
+from ..core import security
 
 def create_routes(api: FastAPI | APIRouter):
     @api.get("/health")
@@ -143,11 +146,18 @@ def create_routes(api: FastAPI | APIRouter):
     @api.get(
         "/customers/me",
         response_model=CustomerResponse,
-        summary="Get the signed-in customer's info",
+        summary="Get the signed-in customer's info",    
         responses={401: {"description": "Not signed in"}},
     )
-    def get_my_customer_info(current_customer: Customer = Depends(get_current_customer)):
-        return current_customer
+    def get_my_customer_info(current_customer: Customer | None = Depends(get_current_customer)):
+        try:
+            if current_customer is None:
+                        raise NotLoggedInError("Please log in to access this endpoint.")
+            if not current_customer.isActive:
+                raise CustomerDeactivatedError()
+            return current_customer
+        except (CustomerNotFoundError, CustomerDeactivatedError, NotLoggedInError) as e:
+            raise HTTPException(status_code=401, detail=str(e))
 
 
     @api.patch(
@@ -161,17 +171,21 @@ def create_routes(api: FastAPI | APIRouter):
     )
     def update_my_customer_info(
         request: CustomerUpdate,
-        current_customer: Customer = Depends(get_current_customer),
+        current_customer: Customer | None = Depends(get_current_customer),
         customer_service: CustomerService = Depends(get_customer_service),
     ):
         """Changes only the fields that are sent. The password, role and id can't be changed here."""
         try:
+            if current_customer is None:
+                raise NotLoggedInError("Please log in to access this endpoint.")
+            if not current_customer.isActive:
+                raise CustomerDeactivatedError()
             return customer_service.update_customer(current_customer.id, request)
 
         except DuplicateEmailError as e:
             raise HTTPException(status_code=409, detail=str(e))
 
-        except (CustomerNotFoundError, CustomerDeactivatedError) as e:
+        except (CustomerNotFoundError, CustomerDeactivatedError, NotLoggedInError) as e:
             raise HTTPException(status_code=401, detail=str(e))
 
 
@@ -182,16 +196,40 @@ def create_routes(api: FastAPI | APIRouter):
         responses={401: {"description": "Not signed in"}},
     )
     def deactivate_my_account(
-        current_customer: Customer = Depends(get_current_customer),
+        current_customer: Customer | None = Depends(get_current_customer),
         customer_service: CustomerService = Depends(get_customer_service),
     ):
         """The account is kept (so past orders stay valid) but marked inactive, so it can't be used again."""
+        
+
         try:
+            if current_customer is None:
+                raise NotLoggedInError("Please log in to access this endpoint.")
             customer_service.deactivate_customer(current_customer.id)
 
-        except (CustomerNotFoundError, CustomerDeactivatedError) as e:
+        except (CustomerNotFoundError, CustomerDeactivatedError, NotLoggedInError) as e:
             raise HTTPException(status_code=401, detail=str(e))
+          
+    @api.post(
+        "/login",
+        response_model=Token,
+        status_code=200,
+        summary="Login a customer",
+        responses={401: {"description": "Invalid email or password"}, 404: {"description": "Customer has been deactivated"}},
+    )
+    def login_customer(request: LoginRequest, customer_service: CustomerService = Depends(get_customer_service)):
+        """Authenticates a customer and returns a login response."""
+        try:
+            customer = customer_service.login_customer(request)
+            if customer is None:
+                raise InvalidCredentialsError()
+            token = security.create_access_token(data={"sub": customer.id})
+            return Token(access_token=token, token_type="bearer")
 
+        except (CustomerDeactivatedError) as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except (InvalidCredentialsError) as e:
+            raise HTTPException(status_code=401, detail=str(e))
 
     @api.get("/", include_in_schema=False)
     @api.get("/{path:path}", include_in_schema=False)

@@ -12,3 +12,16 @@ class DuplicateEmailError(Exception):
 
 class CustomerDeactivatedError(Exception):
     """The customer's account has been deactivated."""
+    
+class NotLoggedInError(Exception):
+    """The customer is not logged in."""
+
+class InvalidCredentialsError(Exception):
+    """The email or password is incorrect."""
+
+class InvalidTokenError(Exception):
+    """The JWT token is invalid or expired."""
+
+class UnauthorizedError(Exception):
+    """The user is not authorized to perform this action."""
+    

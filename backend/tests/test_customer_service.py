@@ -3,11 +3,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from backend.app.core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError
-from backend.app.core.security import verify_password
+from backend.app.core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError, InvalidCredentialsError
+from backend.app.core.security import hash_password, verify_password
 from backend.app.repositories.customer_repository import CustomerRepository
 from backend.app.schemas.customer import Customer
 from backend.app.schemas.customer_request import CustomerCreate, CustomerUpdate
+from backend.app.schemas.login_request import LoginRequest
 from backend.app.services.customer_service import CustomerService
 from backend.app.repositories.customer_repository import CustomerRepository as RealCustomerRepository
 
@@ -17,6 +18,10 @@ def make_service(*customers):
     repository = MagicMock(spec=CustomerRepository)
     repository.get_all_customers.return_value = list(customers)
     repository.get_customer_by_id.side_effect = lambda customer_id: next((c for c in customers if c.id == customer_id), None)
+    repository.get_customer_by_email.side_effect = lambda email: next(
+        (c for c in customers if c.email.lower() == email.lower()),
+        None,
+    )
     return CustomerService(repository), repository
 
 
@@ -69,6 +74,38 @@ def test_get_active_customer_raises_for_deactivated_account():
 
     with pytest.raises(CustomerDeactivatedError):
         service.get_active_customer("c1")
+
+
+# login
+
+def test_login_verifies_password_against_stored_hash():
+    customer = existing(hashedPassword=hash_password("password123"))
+    service, _ = make_service(customer)
+
+    assert service.login_customer(LoginRequest(email="alex@example.com", password="password123")) is customer
+
+
+def test_login_rejects_wrong_password():
+    customer = existing(hashedPassword=hash_password("password123"))
+    service, _ = make_service(customer)
+
+    with pytest.raises(InvalidCredentialsError):
+        service.login_customer(LoginRequest(email="alex@example.com", password="wrong-password"))
+
+
+def test_login_rejects_unknown_email():
+    service, _ = make_service()
+
+    with pytest.raises(InvalidCredentialsError):
+        service.login_customer(LoginRequest(email="missing@example.com", password="password123"))
+
+
+def test_login_rejects_deactivated_account_with_correct_password():
+    customer = existing(hashedPassword=hash_password("password123"), isActive=False)
+    service, _ = make_service(customer)
+
+    with pytest.raises(CustomerDeactivatedError):
+        service.login_customer(LoginRequest(email="alex@example.com", password="password123"))
 
 
 # update
