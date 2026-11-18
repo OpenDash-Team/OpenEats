@@ -74,6 +74,31 @@ class RestaurantService:
 
         return restaurant
 
+    def menu_items_by_id(self) -> dict[str, tuple[str, MenuItem]]:
+        """Every menu item of every restaurant, by item id, together with the id of its restaurant.
+        Used by the cart (and later checkout) to look up current prices and availability."""
+        menu_items = {}
+
+        for restaurant in self.repository.get_all_restaurants():
+            if restaurant.hasMenu is not None:
+                for menu_item in self._all_menu_items(restaurant.hasMenu.hasMenuSection):
+                    menu_items[menu_item.id] = (restaurant.id, menu_item)
+
+        return menu_items
+
+    def _all_menu_items(self, menu_sections: MenuSection | list[MenuSection]) -> list[MenuItem]:
+        section_list = (menu_sections if isinstance(menu_sections, list) else [menu_sections])
+        menu_items = []
+
+        for section in section_list:
+            if section.hasMenuItem is not None:
+                menu_items += (section.hasMenuItem if isinstance(section.hasMenuItem, list) else [section.hasMenuItem])
+
+            if section.hasMenuSection is not None:
+                menu_items += self._all_menu_items(section.hasMenuSection)
+
+        return menu_items
+
     def _check_not_duplicate(self, restaurants: list[Restaurant], name: str, address: str) -> None:
         # Chains share names, so a restaurant only counts as a duplicate if the address matches too
         for restaurant in restaurants:
