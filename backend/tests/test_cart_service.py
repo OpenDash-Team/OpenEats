@@ -1,0 +1,266 @@
+from decimal import Decimal
+
+import pytest
+
+from backend.app.core.exceptions import (
+    CartItemNotFoundError,
+    CartQuantityError,
+    CustomerDeactivatedError,
+    DifferentRestaurantError,
+    MenuItemNotFoundError,
+    MenuItemUnavailableError,
+)
+from backend.app.repositories.cart_repository import CartRepository
+from backend.app.repositories.restaurant_repository import RestaurantRepository
+from backend.app.schemas.cart import Cart
+from backend.app.schemas.cart_request import CartItemAdd, CartItemUpdate
+from backend.app.schemas.customer import Customer
+from backend.app.schemas.item_availability import ItemAvailability
+from backend.app.schemas.menu import Menu
+from backend.app.schemas.menu_item import MenuItem
+from backend.app.schemas.menu_section import MenuSection
+from backend.app.schemas.offer import Offer
+from backend.app.schemas.restaurant import Restaurant
+from backend.app.services.cart_service import CartService
+from backend.app.services.restaurant_service import RestaurantService
+
+IN_STOCK = "https://schema.org/InStock"
+OUT_OF_STOCK = "https://schema.org/OutOfStock"
+
+
+def menu_item(item_id, price, availability=IN_STOCK):
+    return MenuItem(id=item_id, name=item_id.title(), suitableForDiet=[], offers=Offer(price=price, priceCurrency="CAD", availability=availability))
+
+
+def restaurant(restaurant_id, *items):
+    return Restaurant(
+        id=restaurant_id, name=restaurant_id, address="1 Main St", telephone="+1-250-555-0100", openingHours="Mo-Su 09:00-21:00",
+        hasMenu=Menu(hasMenuSection=[MenuSection(id="main", name="Main", hasMenuItem=list(items))]),
+    )
+
+
+@pytest.fixture
+def files(tmp_path):
+    # Small restaurants file just for these tests: Burger Place (burger, fries, shake out of stock) and Taco Place
+    restaurants = RestaurantRepository(tmp_path / "restaurants.json")
+    restaurants.save_restaurants([
+        restaurant("burger-place", menu_item("burger", "10.00"), menu_item("fries", "3.50"), menu_item("shake", "4.00", OUT_OF_STOCK)),
+        restaurant("taco-place", menu_item("taco", "4.25")),
+    ])
+    carts = CartRepository(tmp_path / "carts.json")
+    carts.save_carts([])
+    return restaurants, carts
+
+
+@pytest.fixture
+def service(files):
+    restaurants, carts = files
+    return CartService(carts, RestaurantService(restaurants))
+
+
+@pytest.fixture
+def alex():
+    return Customer(id="alex", name="Alex", email="alex@example.com", hashedPassword="hash")
+
+
+def set_availability(restaurants, item_id, availability=None, price=None):
+    all_restaurants = restaurants.get_all_restaurants()
+    for r in all_restaurants:
+        for item in r.hasMenu.hasMenuSection[0].hasMenuItem:
+            if item.id == item_id:
+                if availability:
+                    item.offers.availability = ItemAvailability(availability)
+                if price:
+                    item.offers.price = Decimal(price)
+    restaurants.save_restaurants(all_restaurants)
+
+
+# create or retrieve
+
+def test_get_cart_creates_an_empty_cart(service, alex):
+    cart = service.get_cart(alex)
+
+    assert cart.customerId == "alex"
+    assert cart.items == []
+    assert cart.subtotal == Decimal("0.00")
+    assert cart.total == Decimal("0.00")
+
+
+def test_customer_only_ever_has_one_active_cart(service, files, alex):
+    first = service.get_cart(alex)
+    second = service.get_cart(alex)
+
+    assert first.id == second.id
+    assert len(files[1].get_all_carts()) == 1
+
+
+def test_checked_out_cart_is_not_reused(service, files, alex):
+    _, carts = files
+    carts.save_carts([Cart(id="old", customerId="alex", status="checkedOut")])
+
+    cart = service.get_cart(alex)
+
+    assert cart.id != "old"
+
+
+# add
+
+def test_add_items_and_backend_calculates_totals(service, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger", quantity=2))
+    cart = service.add_item(alex, CartItemAdd(menuItemId="fries", quantity=3))
+
+    assert [(i.menuItemId, i.lineTotal) for i in cart.items] == [("burger", Decimal("20.00")), ("fries", Decimal("10.50"))]
+    assert cart.subtotal == Decimal("30.50")
+    assert cart.total == Decimal("30.50")
+    assert cart.currency == "CAD"
+    assert cart.restaurantId == "burger-place"
+
+
+def test_adding_same_item_again_increases_quantity(service, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+    cart = service.add_item(alex, CartItemAdd(menuItemId="burger", quantity=2))
+
+    assert len(cart.items) == 1
+    assert cart.items[0].quantity == 3
+
+
+def test_add_unknown_menu_item_raises(service, alex):
+    with pytest.raises(MenuItemNotFoundError):
+        service.add_item(alex, CartItemAdd(menuItemId="pizza"))
+
+
+def test_add_out_of_stock_item_raises(service, alex):
+    with pytest.raises(MenuItemUnavailableError):
+        service.add_item(alex, CartItemAdd(menuItemId="shake"))
+
+
+def test_add_item_from_second_restaurant_raises(service, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+
+    with pytest.raises(DifferentRestaurantError):
+        service.add_item(alex, CartItemAdd(menuItemId="taco"))
+
+
+def test_adding_past_99_of_one_item_raises(service, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger", quantity=99))
+
+    with pytest.raises(CartQuantityError):
+        service.add_item(alex, CartItemAdd(menuItemId="burger"))
+
+
+# update quantity
+
+def test_update_quantity_recalculates_totals(service, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+
+    cart = service.update_item_quantity(alex, "burger", CartItemUpdate(quantity=4))
+
+    assert cart.items[0].quantity == 4
+    assert cart.subtotal == Decimal("40.00")
+
+
+def test_update_item_not_in_cart_raises(service, alex):
+    with pytest.raises(CartItemNotFoundError):
+        service.update_item_quantity(alex, "burger", CartItemUpdate(quantity=2))
+
+
+# remove and clear
+
+def test_remove_item(service, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+    service.add_item(alex, CartItemAdd(menuItemId="fries"))
+
+    cart = service.remove_item(alex, "burger")
+
+    assert [i.menuItemId for i in cart.items] == ["fries"]
+    assert cart.subtotal == Decimal("3.50")
+
+
+def test_removing_last_item_lets_customer_order_from_another_restaurant(service, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+    service.remove_item(alex, "burger")
+
+    cart = service.add_item(alex, CartItemAdd(menuItemId="taco"))
+
+    assert cart.restaurantId == "taco-place"
+
+
+def test_remove_item_not_in_cart_raises(service, alex):
+    with pytest.raises(CartItemNotFoundError):
+        service.remove_item(alex, "burger")
+
+
+def test_clear_cart_empties_it_and_keeps_the_same_cart(service, alex):
+    before = service.add_item(alex, CartItemAdd(menuItemId="burger", quantity=2))
+
+    cart = service.clear_cart(alex)
+
+    assert cart.id == before.id
+    assert cart.items == []
+    assert cart.restaurantId is None
+    assert cart.total == Decimal("0.00")
+
+
+# live prices
+
+def test_cart_uses_current_menu_price(service, files, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger", quantity=2))
+    set_availability(files[0], "burger", price="12.00")
+
+    cart = service.get_cart(alex)
+
+    assert cart.items[0].unitPrice == Decimal("12.00")
+    assert cart.total == Decimal("24.00")
+
+
+def test_item_that_went_out_of_stock_is_flagged_and_not_counted(service, files, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+    service.add_item(alex, CartItemAdd(menuItemId="fries"))
+    set_availability(files[0], "burger", availability=OUT_OF_STOCK)
+
+    cart = service.get_cart(alex)
+
+    burger = next(i for i in cart.items if i.menuItemId == "burger")
+    assert burger.available is False
+    assert burger.lineTotal == Decimal("0")
+    assert cart.subtotal == Decimal("3.50")
+
+
+def test_out_of_stock_item_can_be_removed_but_not_increased(service, files, alex):
+    service.add_item(alex, CartItemAdd(menuItemId="burger"))
+    set_availability(files[0], "burger", availability=OUT_OF_STOCK)
+
+    with pytest.raises(MenuItemUnavailableError):
+        service.update_item_quantity(alex, "burger", CartItemUpdate(quantity=2))
+
+    assert service.remove_item(alex, "burger").items == []
+
+
+# customers (multi-subsystem rule)
+
+@pytest.mark.parametrize("action", [
+    lambda s, c: s.get_cart(c),
+    lambda s, c: s.add_item(c, CartItemAdd(menuItemId="burger")),
+    lambda s, c: s.update_item_quantity(c, "burger", CartItemUpdate(quantity=2)),
+    lambda s, c: s.remove_item(c, "burger"),
+    lambda s, c: s.clear_cart(c),
+])
+def test_deactivated_customer_cannot_create_or_change_a_cart(service, files, action):
+    deactivated = Customer(id="sam", name="Sam", email="sam@example.com", hashedPassword="hash", isActive=False)
+
+    with pytest.raises(CustomerDeactivatedError):
+        action(service, deactivated)
+
+    assert files[1].get_all_carts() == []
+
+
+def test_cart_is_still_there_after_restart(files, alex):
+    restaurants, carts = files
+    CartService(carts, RestaurantService(restaurants)).add_item(alex, CartItemAdd(menuItemId="burger", quantity=2))
+
+    # New repositories and service read the files again, like after a restart
+    restarted = CartService(CartRepository(carts.file_path), RestaurantService(RestaurantRepository(restaurants.file_path)))
+    cart = restarted.get_cart(alex)
+
+    assert cart.items[0].quantity == 2
+    assert cart.total == Decimal("20.00")
