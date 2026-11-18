@@ -69,5 +69,5 @@ class CustomerService:
 
     def _check_email_not_taken(self, customers: list[Customer], email: str) -> None:
         # Deactivated accounts still hold their email, so it can't be reused for a new account
-        if any(customer.email == email.lower() for customer in customers):
+        if any(customer.email == email for customer in customers):
             raise DuplicateEmailError(f"A customer with email '{email}' already exists")

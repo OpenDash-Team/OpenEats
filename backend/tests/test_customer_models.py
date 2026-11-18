@@ -60,4 +60,4 @@ def test_update_needs_at_least_one_field():
 
 def test_update_rejects_password_change():
     with pytest.raises(ValidationError):
-        CustomerUpdate(password="newpassword123")
+        CustomerUpdate(name="Alex", password="newpassword123")
