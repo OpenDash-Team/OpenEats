@@ -10,6 +10,7 @@ from ..schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
 from ..schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
 from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError, DuplicateEmailError, CustomerNotFoundError, CustomerDeactivatedError
 from ..schemas.customer import Customer, CustomerResponse
+from ..schemas.error import ErrorResponse
 from ..schemas.customer_request import CustomerCreate, CustomerUpdate
 from ..services.customer_service import CustomerService
 
@@ -129,7 +130,7 @@ def create_routes(api: FastAPI | APIRouter):
         response_model=CustomerResponse,
         status_code=201,
         summary="Register a customer",
-        responses={409: {"description": "A customer with this email already exists"}},
+        responses={409: {"model": ErrorResponse, "description": "A customer with this email already exists"}},
     )
     def register_customer(request: CustomerCreate, customer_service: CustomerService = Depends(get_customer_service)):
         """Creates a new customer account. The password is stored hashed and never returned."""
@@ -144,9 +145,10 @@ def create_routes(api: FastAPI | APIRouter):
         "/customers/me",
         response_model=CustomerResponse,
         summary="Get the signed-in customer's info",
-        responses={401: {"description": "Not signed in"}},
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
     )
     def get_my_customer_info(current_customer: Customer = Depends(get_current_customer)):
+        """Returns the customer the request is signed in as. The password hash is never included."""
         return current_customer
 
 
@@ -155,8 +157,8 @@ def create_routes(api: FastAPI | APIRouter):
         response_model=CustomerResponse,
         summary="Update the signed-in customer's info and delivery address",
         responses={
-            401: {"description": "Not signed in"},
-            409: {"description": "Another customer already uses this email"},
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            409: {"model": ErrorResponse, "description": "Another customer already uses this email"},
         },
     )
     def update_my_customer_info(
@@ -179,7 +181,7 @@ def create_routes(api: FastAPI | APIRouter):
         "/customers/me",
         status_code=204,
         summary="Deactivate the signed-in customer's account",
-        responses={401: {"description": "Not signed in"}},
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
     )
     def deactivate_my_account(
         current_customer: Customer = Depends(get_current_customer),
