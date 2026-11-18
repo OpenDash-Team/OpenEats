@@ -1,7 +1,6 @@
 from pwdlib import PasswordHash
 
-# Argon2 hashing. Each hash gets its own random salt, so no secret key is needed here.
-# (The SECRET_KEY in .env is only for signing login tokens.)
+# Argon2, each hash gets its own random salt
 password_hash = PasswordHash.recommended()
 
 

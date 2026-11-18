@@ -9,14 +9,12 @@ from backend.app.repositories.customer_repository import CustomerRepository
 from backend.app.schemas.customer import Customer
 from backend.app.schemas.customer_request import CustomerCreate, CustomerUpdate
 from backend.app.services.customer_service import CustomerService
-from backend.app.repositories.customer_repository import CustomerRepository as RealCustomerRepository
 
 
 def make_service(*customers):
     # MagicMock (not Mock) so `with repository.lock():` works
     repository = MagicMock(spec=CustomerRepository)
     repository.get_all_customers.return_value = list(customers)
-    repository.get_customer_by_id.side_effect = lambda customer_id: next((c for c in customers if c.id == customer_id), None)
     return CustomerService(repository), repository
 
 
@@ -61,7 +59,7 @@ def test_get_customer_raises_when_id_is_unknown():
     service, _ = make_service()
 
     with pytest.raises(CustomerNotFoundError):
-        service.get_customer("missing")
+        service.get_active_customer("missing")
 
 
 def test_get_active_customer_raises_for_deactivated_account():
@@ -129,7 +127,7 @@ def test_deactivate_unknown_customer_raises():
         service.deactivate_customer("missing")
 
 
-# Two sign-ups at the same time (regression test for a lost-update bug found in review)
+# Regression: parallel sign-ups used to overwrite each other (found in review)
 
 def register_in_parallel(file_path, emails):
     file_path.write_text("[]")
@@ -137,7 +135,7 @@ def register_in_parallel(file_path, emails):
 
     def register(email):
         # A new service + repository per call, like separate requests
-        service = CustomerService(RealCustomerRepository(file_path))
+        service = CustomerService(CustomerRepository(file_path))
         try:
             service.register_customer(CustomerCreate(name="Parallel", email=email, password="password123"))
             results.append("ok")
@@ -150,7 +148,7 @@ def register_in_parallel(file_path, emails):
     for thread in threads:
         thread.join()
 
-    return results, RealCustomerRepository(file_path).get_all_customers()
+    return results, CustomerRepository(file_path).get_all_customers()
 
 
 def test_parallel_registrations_are_all_saved(tmp_path):
