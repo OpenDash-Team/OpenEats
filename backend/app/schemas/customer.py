@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from ..core.identifiers import generate_id
 
-CustomerRole = Literal["customer", "owner", "admin"]
+CustomerRole = Literal["customer", "owner"]
 
 
 class Customer(BaseModel):
