@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 
 from ..services.restaurant_service import RestaurantService
 from ..services.customer_service import CustomerService
@@ -26,14 +26,5 @@ def get_customer_service() -> CustomerService:
     return CustomerService(customer_repository)
 
 def get_current_customer() -> Customer:
-    """Returns the signed-in customer for protected endpoints.
-
-    Placeholder until the JWT login (#52) is merged: it rejects every request, so the
-    protected endpoints are locked by default. The auth work replaces the body with
-    token decoding + customer_service.get_active_customer(customer_id).
-    """
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    """Placeholder until login (#52) is merged: rejects every request."""
+    raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"})

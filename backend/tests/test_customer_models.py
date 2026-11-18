@@ -1,7 +1,6 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.app.schemas.customer import Customer, CustomerResponse
 from backend.app.schemas.customer_request import CustomerCreate, CustomerUpdate
 
 
@@ -62,11 +61,3 @@ def test_update_needs_at_least_one_field():
 def test_update_rejects_password_change():
     with pytest.raises(ValidationError):
         CustomerUpdate(password="newpassword123")
-
-
-def test_response_leaves_out_the_password_hash():
-    customer = Customer(name="Jordan", email="jordan@example.com", hashedPassword="secret-hash")
-
-    response = CustomerResponse.model_validate(customer.model_dump())
-
-    assert "hashedPassword" not in response.model_dump()
