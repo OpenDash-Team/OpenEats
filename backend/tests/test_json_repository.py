@@ -1,6 +1,6 @@
 import json
 import os
-import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 from unittest.mock import patch
 
@@ -65,11 +65,8 @@ def test_lock_stops_parallel_saves_from_overwriting_each_other(tmp_path):
             items.append(Item(id=str(number), name=f"item {number}"))
             repo._save_all(items)
 
-    threads = [threading.Thread(target=add_item, args=(n,)) for n in range(8)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(add_item, range(8)))  # list() re-raises any error from a thread
 
     assert len(JsonRepository(file_path, Item)._load_all()) == 8
 
