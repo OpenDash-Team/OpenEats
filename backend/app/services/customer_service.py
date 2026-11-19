@@ -64,6 +64,14 @@ class CustomerService:
             customer.isActive = False
             self.repository.save_customers(customers)
 
+    def logout_customer(self, customer_id: str) -> None:
+        with self.repository.lock():
+            customers = self.repository.get_all_customers()
+            customer = self._find_active(customers, customer_id)
+
+            customer.token_version += 1
+            self.repository.save_customers(customers)
+
     def _find_active(self, customers: list[Customer], customer_id: str) -> Customer:
         customer = next((c for c in customers if c.id == customer_id), None)
         if customer is None:

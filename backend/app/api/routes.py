@@ -18,6 +18,7 @@ from ..services.customer_service import CustomerService
 from ..schemas.login_request import LoginRequest, LoginResponse
 from ..schemas.token import Token
 from ..core import security
+from backend.app.services import customer_service
 
 def create_routes(api: FastAPI | APIRouter):
     @api.get("/health")
@@ -226,13 +227,29 @@ def create_routes(api: FastAPI | APIRouter):
             customer = customer_service.login_customer(request)
             if customer is None:
                 raise InvalidCredentialsError()
-            token = security.create_access_token(data={"sub": customer.id})
+            token = security.create_access_token(data={"sub": str(customer.id), "ver": customer.token_version})
             return Token(access_token=token, token_type="bearer")
 
         except (CustomerDeactivatedError) as e:
             raise HTTPException(status_code=404, detail=str(e))
         except (InvalidCredentialsError) as e:
             raise HTTPException(status_code=401, detail=str(e))
+
+    @api.post(
+    "/logout",
+    status_code=200,
+    summary="Logout a customer",
+    responses={401: {"description": "Not authenticated or token already invalidated"}},
+    )
+    def logout_customer(
+        current_customer: Customer = Depends(get_current_customer),
+        customer_service: CustomerService = Depends(get_customer_service),
+    ) -> dict[str, str]:
+        """Invalidates the customer's current token(s) and logs them out."""
+        if current_customer is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        customer_service.logout_customer(current_customer.id)
+        return {"message": "Successfully logged out."}
 
     @api.get(
         "/cart",

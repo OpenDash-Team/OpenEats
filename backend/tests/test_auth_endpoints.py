@@ -38,6 +38,10 @@ def make_invalid_token(kind):
         )
     if kind == "missing-subject":
         return create_access_token({})
+    if kind == "missing-version":
+        return create_access_token({"sub": "unknown"})
+    if kind == "boolean-version":
+        return create_access_token({"sub": "unknown", "ver": True})
     if kind == "non-string-subject":
         return create_access_token({"sub": 123})
     if kind == "unknown-customer":
@@ -138,6 +142,8 @@ def test_deactivated_customer_cannot_log_in_again(client):
         "tampered",
         "expired",
         "missing-subject",
+        "missing-version",
+        "boolean-version",
         "non-string-subject",
         "unknown-customer",
     ],
@@ -152,4 +158,35 @@ def test_protected_routes_reject_invalid_tokens(client, method, path, body, toke
         json=body,
     )
 
+    assert response.status_code == 401
+
+
+def test_logout_invalidates_old_tokens_but_allows_login_again(client):
+    account, created = register_customer(client)
+    first_login = token_for(client, account["email"], account["password"])
+    old_headers = {"Authorization": f"Bearer {first_login['access_token']}"}
+
+    logout = client.post("/api/v1/logout", headers=old_headers)
+    assert logout.status_code == 200
+    assert logout.json() == {"message": "Successfully logged out."}
+
+    assert client.get("/api/v1/customers/me", headers=old_headers).status_code == 401
+
+    second_login = token_for(client, account["email"], account["password"])
+    new_headers = {"Authorization": f"Bearer {second_login['access_token']}"}
+    assert client.get("/api/v1/customers/me", headers=new_headers).status_code == 200
+    assert client.get("/api/v1/customers/me", headers=new_headers).json()["id"] == created["id"]
+
+    second_logout = client.post("/api/v1/logout", headers=new_headers)
+    assert second_logout.status_code == 200
+
+
+def test_logout_requires_a_valid_token(client):
+    assert client.post("/api/v1/logout").status_code == 401
+
+    old_token = create_access_token({"sub": "missing-customer", "ver": 0})
+    response = client.post(
+        "/api/v1/logout",
+        headers={"Authorization": f"Bearer {old_token}"},
+    )
     assert response.status_code == 401

@@ -163,6 +163,37 @@ def test_deactivate_unknown_customer_raises():
         service.deactivate_customer("missing")
 
 
+# logout
+
+def test_logout_increments_token_version_and_saves_customer():
+    customer = existing(token_version=3)
+    service, repository = make_service(customer)
+
+    service.logout_customer("c1")
+
+    assert customer.token_version == 4
+    repository.save_customers.assert_called_once_with([customer])
+
+
+def test_logout_unknown_customer_raises():
+    service, repository = make_service(existing())
+
+    with pytest.raises(CustomerNotFoundError):
+        service.logout_customer("missing")
+
+    repository.save_customers.assert_not_called()
+
+
+def test_logout_rejects_deactivated_customer():
+    customer = existing(isActive=False)
+    service, repository = make_service(customer)
+
+    with pytest.raises(CustomerDeactivatedError):
+        service.logout_customer("c1")
+
+    repository.save_customers.assert_not_called()
+
+
 # Regression: parallel sign-ups used to overwrite each other (found in review)
 
 def register_in_parallel(file_path, emails):

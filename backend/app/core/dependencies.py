@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import jwt
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
 from backend.app.repositories.cart_repository import CartRepository
@@ -51,13 +51,17 @@ def get_current_customer(
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        customer_id = payload.get("sub")
+        token_version = payload.get("ver")
+        if not isinstance(customer_id, str) or type(token_version) is not int:
+            raise HTTPException(status_code=401, detail="Not authenticated")
     except jwt.InvalidTokenError:
-        return None
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
-    customer_id = payload.get("sub")
-    if not isinstance(customer_id, str):
-        return None
+    customer = customer_service.get_active_customer(customer_id)
+    if customer is None or customer.token_version != token_version:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
-    return customer_service.get_active_customer(customer_id)
+    return customer
 
 
