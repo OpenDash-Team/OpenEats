@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import time
 from unittest.mock import patch
@@ -92,5 +93,39 @@ def test_save_that_fails_while_writing_json_leaves_no_temp_file(tmp_path, error)
         with pytest.raises(type(error)):
             repo._save_all([Item(id="2", name="new")])
 
+    assert repo._load_all() == [Item(id="1", name="original")]
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_save_retries_when_the_file_is_briefly_locked(tmp_path):
+    # Windows refuses os.replace while another program has the file open for a moment
+    repo = JsonRepository(tmp_path / "items.json", Item)
+    real_replace = os.replace
+    calls = []
+
+    def locked_twice(src, dst):
+        calls.append(src)
+        if len(calls) <= 2:
+            raise PermissionError("file is in use")
+        real_replace(src, dst)
+
+    with patch("backend.app.repositories.json_repository.os.replace", side_effect=locked_twice), \
+         patch("backend.app.repositories.json_repository.time.sleep"):
+        repo._save_all([Item(id="1", name="saved")])
+
+    assert len(calls) == 3
+    assert repo._load_all() == [Item(id="1", name="saved")]
+
+
+def test_save_gives_up_after_too_many_attempts(tmp_path):
+    repo = JsonRepository(tmp_path / "items.json", Item)
+    repo._save_all([Item(id="1", name="original")])
+
+    with patch("backend.app.repositories.json_repository.os.replace", side_effect=PermissionError("file is in use")) as replace, \
+         patch("backend.app.repositories.json_repository.time.sleep"):
+        with pytest.raises(OSError, match="Failed to save"):
+            repo._save_all([Item(id="2", name="new")])
+
+    assert replace.call_count == 5
     assert repo._load_all() == [Item(id="1", name="original")]
     assert list(tmp_path.glob("*.tmp")) == []
