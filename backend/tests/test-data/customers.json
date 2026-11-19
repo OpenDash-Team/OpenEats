@@ -18,5 +18,15 @@
         "address": null,
         "role": "customer",
         "isActive": false
+    },
+    {
+        "id": "cust0000000000000owner",
+        "name": "Olivia Owner",
+        "email": "owner@example.com",
+        "hashedPassword": "$argon2id$v=19$m=65536,t=3,p=4$g+rI/+OQz5FRaAHUMwBgAA$/qhCMrUnpOABJYM/iv/8WQEriYyoe6kd0hf7/0m7+gg",
+        "telephone": null,
+        "address": null,
+        "role": "owner",
+        "isActive": true
     }
 ]
