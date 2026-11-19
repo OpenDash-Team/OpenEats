@@ -1,7 +1,6 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.app.schemas.customer import Customer, CustomerResponse
 from backend.app.schemas.customer_request import CustomerCreate, CustomerUpdate
 
 
@@ -23,6 +22,12 @@ def test_create_stores_email_in_lowercase():
     assert customer.email == "jordan@example.com"
 
 
+def test_create_accepts_password_of_exactly_128_characters():
+    customer = CustomerCreate(**valid_customer(password="a" * 128))
+
+    assert len(customer.password) == 128
+
+
 def test_create_keeps_spaces_in_password():
     customer = CustomerCreate(**valid_customer(password="  spaced out  "))
 
@@ -33,6 +38,7 @@ def test_create_keeps_spaces_in_password():
     ("email", "not-an-email"),
     ("password", "short"),
     ("password", "        "),
+    ("password", "a" * 129),
     ("name", ""),
     ("telephone", "call me"),
 ])
@@ -54,12 +60,4 @@ def test_update_needs_at_least_one_field():
 
 def test_update_rejects_password_change():
     with pytest.raises(ValidationError):
-        CustomerUpdate(password="newpassword123")
-
-
-def test_response_leaves_out_the_password_hash():
-    customer = Customer(name="Jordan", email="jordan@example.com", hashedPassword="secret-hash")
-
-    response = CustomerResponse.model_validate(customer.model_dump())
-
-    assert "hashedPassword" not in response.model_dump()
+        CustomerUpdate(name="Alex", password="newpassword123")

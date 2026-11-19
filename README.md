@@ -49,6 +49,16 @@ Install the required dependencies:
 pip install -r backend/requirements.txt
 ```
 
+### Configure the JWT Signing Key
+
+Create a local environment file for development and tests:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Generate a secret with `python -c "import secrets; print(secrets.token_urlsafe(48))"` and put it in `.env` as `JWT_SECRET_KEY`. The key must be at least 32 bytes. Keep `.env` private; it is ignored by Git.
+
 ### Sample Data (Optional, First Run Only)
 
 To use the sample data, rename `backend/sample-data` to `backend/data`.
@@ -131,6 +141,14 @@ Move-Item backend/sample-data data
 
 ### Start the Application
 
+Create the Docker environment file and generate a different secret from the local `.env` key:
+
+```powershell
+Copy-Item .env.docker.example .env.docker
+```
+
+Set `JWT_SECRET_KEY` in `.env.docker` to its own generated value. Compose passes this file into the container; it is ignored by Git and must be provided on the production host.
+
 From the repository root, run:
 
 ```bash
@@ -163,6 +181,8 @@ On the startup screen, choose **Customer** to browse restaurants or **Restaurant
 
 The API provides the following endpoints:
 
+Customer login returns a bearer token. Include it in the `Authorization` header when calling the `/customers/me` and `/cart` endpoints.
+
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/v1/health` | `Checks if the API is running.` |
@@ -175,9 +195,15 @@ The API provides the following endpoints:
 | PATCH | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Updates a menu item's fields. Returns 200, 404 if the item or restaurant is not found, 422 for invalid input.` |
 | DELETE | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Deletes a specific menu item. Returns 204 on success, 404 if not found.` |
 | POST | `/api/v1/customers` | `Registers a customer. Returns 201 (without the password), 409 if the email is already registered, 422 for invalid input.` |
+| POST | `/api/v1/login` | `Authenticates a customer and returns a bearer access token. Returns 200, 401 for invalid credentials, 404 for a deactivated account, 422 for invalid input.` |
 | GET | `/api/v1/customers/me` | `Returns the signed-in customer's info. Returns 401 if not signed in.` |
 | PATCH | `/api/v1/customers/me` | `Updates the signed-in customer's name, email, telephone or delivery address. Returns 200, 401, 409 if the email is taken, 422 for invalid input.` |
 | DELETE | `/api/v1/customers/me` | `Deactivates the signed-in customer's account (kept but marked inactive). Returns 204, 401 if not signed in.` |
+| GET | `/api/v1/cart` | `Returns the signed-in customer's active cart (creates an empty one the first time) with current prices, subtotal and total. Returns 200, 401 if not signed in.` |
+| POST | `/api/v1/cart/items` | `Adds a menu item (or increases its quantity). Returns 200, 401, 404 for an unknown item, 409 if it's out of stock, from another restaurant or would go over 99, 422 for an invalid quantity.` |
+| PATCH | `/api/v1/cart/items/{menu_item_id}` | `Sets an item's quantity (1-99). Returns 200, 401, 404 if the item isn't in the cart or was removed from the menu, 409 if raising the quantity of an out of stock item, 422 for an invalid quantity.` |
+| DELETE | `/api/v1/cart/items/{menu_item_id}` | `Removes an item from the cart. Returns 200 with the updated cart, 401, 404 if the item isn't in the cart.` |
+| DELETE | `/api/v1/cart` | `Clears the cart. Returns 200 with the empty cart, 401 if not signed in.` |
 
 
 ## API Documentation

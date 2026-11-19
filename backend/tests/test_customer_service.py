@@ -10,7 +10,6 @@ from backend.app.schemas.customer import Customer
 from backend.app.schemas.customer_request import CustomerCreate, CustomerUpdate
 from backend.app.schemas.login_request import LoginRequest
 from backend.app.services.customer_service import CustomerService
-from backend.app.repositories.customer_repository import CustomerRepository as RealCustomerRepository
 
 
 def make_service(*customers):
@@ -62,18 +61,16 @@ def test_register_rejects_email_of_deactivated_account():
 
 # get
 
-def test_get_customer_raises_when_id_is_unknown():
+def test_get_active_customer_returns_none_when_id_is_unknown():
     service, _ = make_service()
 
-    with pytest.raises(CustomerNotFoundError):
-        service.get_customer("missing")
+    assert service.get_active_customer("missing") is None
 
 
-def test_get_active_customer_raises_for_deactivated_account():
+def test_get_active_customer_returns_none_for_deactivated_account():
     service, _ = make_service(existing(isActive=False))
 
-    with pytest.raises(CustomerDeactivatedError):
-        service.get_active_customer("c1")
+    assert service.get_active_customer("c1") is None
 
 
 # login
@@ -166,7 +163,7 @@ def test_deactivate_unknown_customer_raises():
         service.deactivate_customer("missing")
 
 
-# Two sign-ups at the same time (regression test for a lost-update bug found in review)
+# Regression: parallel sign-ups used to overwrite each other (found in review)
 
 def register_in_parallel(file_path, emails):
     file_path.write_text("[]")
@@ -174,7 +171,7 @@ def register_in_parallel(file_path, emails):
 
     def register(email):
         # A new service + repository per call, like separate requests
-        service = CustomerService(RealCustomerRepository(file_path))
+        service = CustomerService(CustomerRepository(file_path))
         try:
             service.register_customer(CustomerCreate(name="Parallel", email=email, password="password123"))
             results.append("ok")
@@ -187,7 +184,7 @@ def register_in_parallel(file_path, emails):
     for thread in threads:
         thread.join()
 
-    return results, RealCustomerRepository(file_path).get_all_customers()
+    return results, CustomerRepository(file_path).get_all_customers()
 
 
 def test_parallel_registrations_are_all_saved(tmp_path):

@@ -26,21 +26,13 @@ class CustomerService:
 
         return new_customer
 
-    def get_customer(self, customer_id: str) -> Customer:
-        customer = self.repository.get_customer_by_id(customer_id)
-        if customer is None:
-            raise CustomerNotFoundError(f"Customer with id '{customer_id}' is not found")
-        return customer
-
     def get_customer_by_email(self, email: str) -> Customer | None:
         return self.repository.get_customer_by_email(email)
 
-    def get_active_customer(self, customer_id: str) -> Customer:
-        """Like get_customer, but a deactivated account counts as an error.
-        Used for anything a customer does while signed in (profile, cart, checkout)."""
-        customer = self.get_customer(customer_id)
-        if not customer.isActive:
-            raise CustomerDeactivatedError(f"Customer with id '{customer_id}' is deactivated")
+    def get_active_customer(self, customer_id: str) -> Customer | None:
+        customer = self.repository.get_customer_by_id(customer_id)
+        if customer is None or not customer.isActive:
+            return None
         return customer
 
     def update_customer(self, customer_id: str, request: CustomerUpdate) -> Customer:
@@ -82,7 +74,7 @@ class CustomerService:
 
     def _check_email_not_taken(self, customers: list[Customer], email: str) -> None:
         # Deactivated accounts still hold their email, so it can't be reused for a new account
-        if any(customer.email == email.lower() for customer in customers):
+        if any(customer.email == email for customer in customers):
             raise DuplicateEmailError(f"A customer with email '{email}' already exists")
     
     def login_customer(self, request: LoginRequest) -> Customer:

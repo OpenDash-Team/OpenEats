@@ -1,15 +1,22 @@
+import os
 from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
 import jwt
+from dotenv import load_dotenv
 
 
-# Should we make this a secret key in an environment variable?
-SECRET_KEY = "GYUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU!!!!!!!!!!!!!!!!!"
+load_dotenv()
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY must be set in the environment or root .env file")
+if len(SECRET_KEY.encode("utf-8")) < 32:
+    raise RuntimeError("JWT_SECRET_KEY must be at least 32 bytes")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 300
 
-# Argon2 hashing. Each hash gets its own random salt, so no secret key is needed here.
-# (The SECRET_KEY in .env is only for signing login tokens.)
+# Argon2, each hash gets its own random salt
 password_hash = PasswordHash.recommended()
 
 def verify_password(password: str, hashed_password: str) -> bool:

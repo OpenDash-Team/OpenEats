@@ -59,12 +59,15 @@ class JsonRepository[T: BaseModel]:
                 json.dump([item.model_dump(mode="json") for item in items], temp_file, indent=4)
 
             os.replace(temp_file_path, self.file_path)
+            temp_file_path = None  # the temp file is now the real file
 
         except OSError as e:
+            raise OSError(f"Failed to save to '{self.file_path.absolute()}'") from e
+
+        finally:
+            # Whatever went wrong (disk error, data that can't be turned into JSON...), don't leave the temp file behind
             if temp_file_path is not None:
                 try:
-                    os.remove(temp_file_path)  # don't leave failed temp files behind
+                    os.remove(temp_file_path)
                 except FileNotFoundError:
                     pass
-
-            raise OSError(f"Failed to save to '{self.file_path.absolute()}'") from e

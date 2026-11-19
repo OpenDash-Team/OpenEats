@@ -1,6 +1,7 @@
 import pytest
 
 from backend.app.core.security import create_access_token
+ACTIVE_CUSTOMER_ID = "cust000000000000active"  # Alex Morgan in test-data/customers.json
 
 
 def new_customer(**changes):
@@ -71,9 +72,9 @@ def test_register_with_invalid_email_returns_422(client):
 
 @pytest.mark.parametrize("method", ["get", "patch", "delete"])
 def test_my_account_endpoints_need_sign_in(client, method):
-    kwargs = {"json": {"name": "Hacker"}} if method == "patch" else {}
+    body = {"name": "Hacker"} if method == "patch" else None
 
-    response = getattr(client, method)("/api/v1/customers/me", **kwargs)
+    response = client.request(method, "/api/v1/customers/me", json=body)
 
     assert response.status_code == 401
 
@@ -137,9 +138,10 @@ def test_update_with_no_fields_returns_422(signed_in_client):
 
 
 def test_update_cannot_change_role(signed_in_client):
-    response = signed_in_client.patch("/api/v1/customers/me", json={"role": "admin"})
+    response = signed_in_client.patch("/api/v1/customers/me", json={"name": "Alex", "role": "admin"})
 
     assert response.status_code == 422
+    assert signed_in_client.get("/api/v1/customers/me").json()["role"] == "customer"
 
 
 # DELETE /customers/me

@@ -4,7 +4,9 @@ import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
-from ..core.exceptions import CustomerNotFoundError
+from backend.app.repositories.cart_repository import CartRepository
+from backend.app.services.cart_service import CartService
+
 from ..core.security import SECRET_KEY, ALGORITHM
 from ..repositories.customer_repository import CustomerRepository
 from ..repositories.restaurant_repository import RestaurantRepository
@@ -35,6 +37,10 @@ def get_customer_service() -> CustomerService:
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
+def get_cart_service() -> CartService:
+    cart_repository = CartRepository(get_data_dir() / "carts.json")
+    return CartService(cart_repository, get_restaurant_service())
+
 
 def get_current_customer(
     token: str | None = Depends(oauth2_scheme),
@@ -52,7 +58,6 @@ def get_current_customer(
     if not isinstance(customer_id, str):
         return None
 
-    try:
-        return customer_service.get_customer(customer_id)
-    except CustomerNotFoundError:
-        return None
+    return customer_service.get_active_customer(customer_id)
+
+
