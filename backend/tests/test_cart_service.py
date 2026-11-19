@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -313,10 +313,9 @@ def test_parallel_adds_are_all_kept(restaurants, carts, alex):
         # A new service per call, like separate requests
         CartService(CartRepository(carts.file_path), RestaurantService(restaurants)).add_item(alex, CartItemAdd(menuItemId="fries"))
 
-    threads = [threading.Thread(target=add_one) for _ in range(10)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(add_one) for _ in range(10)]
+        for future in futures:
+            future.result()  # re-raises any error from the thread
 
     assert carts.get_all_carts()[0].items[0].quantity == 10
