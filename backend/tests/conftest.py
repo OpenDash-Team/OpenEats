@@ -3,8 +3,11 @@ import shutil
 from pathlib import Path
 import tempfile
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from backend.app.main import main
+from backend.app.core.dependencies import get_current_customer, get_customer_service
+from backend.app.core.exceptions import CustomerDeactivatedError, CustomerNotFoundError
 
 CURRENT_DIR = Path(__file__).resolve().parent
 REAL_DATA = CURRENT_DIR.parent / "data"
@@ -14,7 +17,7 @@ TEST_DATA = CURRENT_DIR.parent / "tests/test-data"
 
 @pytest.fixture(autouse=True)
 def isolated_data():
-    files_to_track = ["restaurants.json", "customers.json"]
+    files_to_track = ["restaurants.json", "customers.json", "carts.json"]
     
     for name in files_to_track:
         test_file = TEST_DATA / name
@@ -43,3 +46,24 @@ def isolated_data():
 def client():
     app = main()
     return TestClient(app)
+
+
+@pytest.fixture
+def sign_in_as():
+    """Gives a function that makes a test client signed in as the given customer id.
+
+    Login (JWT) is a separate task, so this replaces get_current_customer the same way the
+    real one will work: look the customer up and answer 401 if they're missing or deactivated.
+    """
+    def make_client(customer_id):
+        def fake_current_customer():
+            try:
+                return get_customer_service().get_active_customer(customer_id)
+            except (CustomerNotFoundError, CustomerDeactivatedError):
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+        app = main()
+        app.dependency_overrides[get_current_customer] = fake_current_customer
+        return TestClient(app)
+
+    return make_client

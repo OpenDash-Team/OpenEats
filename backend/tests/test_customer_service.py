@@ -1,4 +1,4 @@
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
 
 import pytest
@@ -131,22 +131,19 @@ def test_deactivate_unknown_customer_raises():
 
 def register_in_parallel(file_path, emails):
     file_path.write_text("[]")
-    results = []
 
     def register(email):
         # A new service + repository per call, like separate requests
         service = CustomerService(CustomerRepository(file_path))
         try:
             service.register_customer(CustomerCreate(name="Parallel", email=email, password="password123"))
-            results.append("ok")
+            return "ok"
         except DuplicateEmailError:
-            results.append("duplicate")
+            return "duplicate"
 
-    threads = [threading.Thread(target=register, args=(email,)) for email in emails]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
+    # map() re-raises any other error from a thread, so a failure shows the real cause
+    with ThreadPoolExecutor(max_workers=len(emails)) as executor:
+        results = list(executor.map(register, emails))
 
     return results, CustomerRepository(file_path).get_all_customers()
 

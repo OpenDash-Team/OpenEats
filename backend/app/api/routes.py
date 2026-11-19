@@ -1,18 +1,25 @@
-from fastapi import FastAPI, HTTPException, Depends, APIRouter
+from fastapi import FastAPI, HTTPException, Depends, APIRouter, Path
 from json import JSONDecodeError
 
-from ..core.dependencies import get_restaurant_service, get_customer_service, get_current_customer
+from ..core.dependencies import get_restaurant_service, get_customer_service, get_current_customer, get_cart_service
 from ..schemas.restaurant import Restaurant
 from ..schemas.restaurant_query import RestaurantQuery
 from ..services.restaurant_service import RestaurantService
 from ..schemas.menu_item import MenuItem
 from ..schemas.menu_item_request import MenuItemCreate, MenuItemUpdate
 from ..schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
-from ..core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError, DuplicateEmailError, CustomerNotFoundError, CustomerDeactivatedError
+from ..core.exceptions import (
+    DuplicateRestaurantError, RestaurantNotFoundError,
+    DuplicateEmailError, CustomerNotFoundError, CustomerDeactivatedError,
+    MenuItemNotFoundError, MenuItemUnavailableError, DifferentRestaurantError, CartItemNotFoundError, CartQuantityError,
+)
 from ..schemas.customer import Customer, CustomerResponse
 from ..schemas.error import ErrorResponse
 from ..schemas.customer_request import CustomerCreate, CustomerUpdate
 from ..services.customer_service import CustomerService
+from ..schemas.cart import CartResponse
+from ..schemas.cart_request import CartItemAdd, CartItemUpdate
+from ..services.cart_service import CartService
 
 def create_routes(api: FastAPI | APIRouter):
     @api.get("/health")
@@ -192,6 +199,127 @@ def create_routes(api: FastAPI | APIRouter):
             customer_service.deactivate_customer(current_customer.id)
 
         except (CustomerNotFoundError, CustomerDeactivatedError) as e:
+            raise HTTPException(status_code=401, detail=str(e))
+
+
+    @api.get(
+        "/cart",
+        response_model=CartResponse,
+        summary="Get my cart",
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
+    )
+    def get_cart(
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Returns the signed-in customer's active cart (an empty one is created the first time),
+        with current prices and the subtotal and total calculated by the backend."""
+        try:
+            return cart_service.get_cart(current_customer)
+
+        except CustomerDeactivatedError as e:
+            raise HTTPException(status_code=401, detail=str(e))
+
+
+    @api.post(
+        "/cart/items",
+        response_model=CartResponse,
+        summary="Add a menu item to my cart",
+        responses={
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            404: {"model": ErrorResponse, "description": "No menu item has this id"},
+            409: {"model": ErrorResponse, "description": "The item is out of stock, the cart has items from another restaurant, or it would go over 99"},
+        },
+    )
+    def add_cart_item(
+        request: CartItemAdd,
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Adds the item to the cart. If it's already there, its quantity goes up instead."""
+        try:
+            return cart_service.add_item(current_customer, request)
+
+        except CustomerDeactivatedError as e:
+            raise HTTPException(status_code=401, detail=str(e))
+
+        except MenuItemNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+        except (MenuItemUnavailableError, DifferentRestaurantError, CartQuantityError) as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
+
+    @api.patch(
+        "/cart/items/{menu_item_id}",
+        response_model=CartResponse,
+        summary="Change the quantity of an item in my cart",
+        responses={
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            404: {"model": ErrorResponse, "description": "The item is not in the cart, or is no longer on the menu"},
+            409: {"model": ErrorResponse, "description": "The item is out of stock, so its quantity can only go down"},
+        },
+    )
+    def update_cart_item(
+        request: CartItemUpdate,
+        menu_item_id: str = Path(description="Id of the menu item in the cart"),
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Sets the item's quantity (1-99). To take it out of the cart, use DELETE instead."""
+        try:
+            return cart_service.update_item_quantity(current_customer, menu_item_id, request)
+
+        except CustomerDeactivatedError as e:
+            raise HTTPException(status_code=401, detail=str(e))
+
+        except (CartItemNotFoundError, MenuItemNotFoundError) as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+        except MenuItemUnavailableError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
+
+    @api.delete(
+        "/cart/items/{menu_item_id}",
+        response_model=CartResponse,
+        summary="Remove an item from my cart",
+        responses={
+            401: {"model": ErrorResponse, "description": "Not signed in"},
+            404: {"model": ErrorResponse, "description": "The item is not in the cart"},
+        },
+    )
+    def remove_cart_item(
+        menu_item_id: str = Path(description="Id of the menu item in the cart"),
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Removes the item and returns the updated cart. Works for items that are out of stock or no longer on the menu."""
+        try:
+            return cart_service.remove_item(current_customer, menu_item_id)
+
+        except CustomerDeactivatedError as e:
+            raise HTTPException(status_code=401, detail=str(e))
+
+        except CartItemNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+
+    @api.delete(
+        "/cart",
+        response_model=CartResponse,
+        summary="Clear my cart",
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
+    )
+    def clear_cart(
+        current_customer: Customer = Depends(get_current_customer),
+        cart_service: CartService = Depends(get_cart_service),
+    ):
+        """Removes every item. The cart stays, empty, and can be used for any restaurant again."""
+        try:
+            return cart_service.clear_cart(current_customer)
+
+        except CustomerDeactivatedError as e:
             raise HTTPException(status_code=401, detail=str(e))
 
 
