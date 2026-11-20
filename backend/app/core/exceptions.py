@@ -27,3 +27,12 @@ class CartItemNotFoundError(Exception):
 
 class CartQuantityError(Exception):
     """The change would put a cart item's quantity outside the allowed range."""
+
+class CheckoutError(Exception):
+    """Base exception for expected checkout failures."""
+
+class CheckoutValidationError(CheckoutError):
+    """The cart or customer does not satisfy checkout requirements."""
+
+class CheckoutPermissionError(CheckoutError):
+    """The authenticated account is not allowed to check out."""
