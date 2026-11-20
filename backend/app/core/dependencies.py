@@ -9,7 +9,8 @@ from ..repositories.restaurant_repository import RestaurantRepository
 from ..repositories.customer_repository import CustomerRepository
 from ..repositories.cart_repository import CartRepository
 from ..schemas.customer import Customer
-
+from ..services.checkout_service import CheckoutService
+from ..repositories.order_repository import OrderRepository
 
 def get_data_dir() -> Path:
     data_dir = Path(__file__).resolve().parents[2] / "data"
@@ -34,3 +35,9 @@ def get_cart_service() -> CartService:
 def get_current_customer() -> Customer:
     """Placeholder until login (#52) is merged: rejects every request."""
     raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"})
+
+def get_checkout_service() -> CheckoutService:
+    cart_repository = CartRepository(get_data_dir() / "carts.json")
+    order_repository = OrderRepository(get_data_dir() / "orders.json")
+    restaurant_service = get_restaurant_service()
+    return CheckoutService(cart_repository=cart_repository, order_repository=order_repository,restaurant_service=restaurant_service,)
