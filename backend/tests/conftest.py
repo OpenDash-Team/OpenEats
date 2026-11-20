@@ -87,25 +87,64 @@ def sign_in_as():
 
 @pytest.fixture
 def checkout_setup(tmp_path):
-    (service, customer, cart_repo, order_repo, _, _,) = checkout_setup
-    app = main()
-    app.dependency_overrides[get_current_customer] = (lambda: customer)
-    app.dependency_overrides[get_checkout_service] = (lambda: service)
+    restaurant_repo = RestaurantRepository(tmp_path / "restaurants.json")
+    cart_repo = CartRepository(tmp_path / "carts.json")
+    order_repo = OrderRepository(tmp_path / "orders.json")
 
-    try:
-        with TestClient(app) as client:
-            response = client.post("/api/v1/checkout")
+    menu_item = MenuItem(
+        name="Test Latte",
+        description="A latte",
+        suitableForDiet=RestrictedDiet.VEGETARIAN,
+        offers=Offer(
+            price=Decimal("5.49"),
+            priceCurrency="CAD",
+            availability=ItemAvailability.IN_STOCK,
+        ),
+    )
 
-        assert response.status_code == 201
-        data = response.json()
-        assert data["customerId"] == customer.id
-        assert data["total"] == "10.98"
-        orders = order_repo.get_all_orders()
-        carts = cart_repo.get_all_carts()
-        assert len(orders) == 1
-        assert orders[0].id == data["id"]
-        assert orders[0].total == Decimal("10.98")
-        assert carts[0].status == "checkedOut"
+    restaurant = Restaurant(
+        name="Test Cafe",
+        address="123 Test Road",
+        telephone="1234567890",
+        openingHours="Mo-Fr 09:00-17:00",
+        hasMenu=Menu(
+            hasMenuSection=[
+                MenuSection(
+                    name="Drinks",
+                    hasMenuItem=[menu_item],
+                )
+            ]
+        ),
+    )
 
-    finally:
-        app.dependency_overrides.clear()
+    restaurant_repo.save_restaurants([restaurant])
+
+    customer = Customer(
+        name="Test Customer",
+        email="test@example.com",
+        hashedPassword="test-only-hash",
+        address="456 Customer Street",
+    )
+
+    cart = Cart(
+        customerId=customer.id,
+        restaurantId=restaurant.id,
+        items=[
+            CartItem(
+                menuItemId=menu_item.id,
+                quantity=2,
+            )
+        ],
+    )
+
+    cart_repo.save_carts([cart])
+
+    service = CheckoutService(
+        cart_repository=cart_repo,
+        order_repository=order_repo,
+        restaurant_service=RestaurantService(
+            restaurant_repo
+        ),
+    )
+
+    return (service,customer, cart_repo, order_repo, restaurant_repo, menu_item)
