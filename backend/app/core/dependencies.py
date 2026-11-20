@@ -11,8 +11,9 @@ from ..repositories.customer_repository import CustomerRepository
 from ..repositories.restaurant_repository import RestaurantRepository
 from ..schemas.customer import Customer
 from ..services.customer_service import CustomerService
+from ..services.checkout_service import CheckoutService
 from ..services.restaurant_service import RestaurantService
-
+from ..repositories.order_repository import OrderRepository
 
 def get_data_dir() -> Path:
     data_dir = Path(__file__).resolve().parents[2] / "data"
@@ -70,3 +71,8 @@ def require_owner(
 
     return current_customer
 
+def get_checkout_service() -> CheckoutService:
+    cart_repository = CartRepository(get_data_dir() / "carts.json")
+    order_repository = OrderRepository(get_data_dir() / "orders.json")
+    restaurant_service = get_restaurant_service()
+    return CheckoutService(cart_repository=cart_repository, order_repository=order_repository,restaurant_service=restaurant_service,)
