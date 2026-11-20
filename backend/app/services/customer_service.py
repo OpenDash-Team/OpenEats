@@ -1,5 +1,7 @@
-from ..core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError
-from ..core.security import hash_password
+from ..schemas.login_request import LoginRequest
+
+from ..core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError, InvalidCredentialsError
+from ..core.security import hash_password, verify_password
 from ..repositories.customer_repository import CustomerRepository
 from ..schemas.customer import Customer
 from ..schemas.customer_request import CustomerCreate, CustomerUpdate
@@ -27,8 +29,11 @@ class CustomerService:
     def get_customer_by_email(self, email: str) -> Customer | None:
         return self.repository.get_customer_by_email(email)
 
-    def get_active_customer(self, customer_id: str) -> Customer:
-        return self._find_active(self.repository.get_all_customers(), customer_id)
+    def get_active_customer(self, customer_id: str) -> Customer | None:
+        customer = self.repository.get_customer_by_id(customer_id)
+        if customer is None or not customer.isActive:
+            return None
+        return customer
 
     def update_customer(self, customer_id: str, request: CustomerUpdate) -> Customer:
         # Fields that were not sent (or sent as null) keep their current value
@@ -59,6 +64,14 @@ class CustomerService:
             customer.isActive = False
             self.repository.save_customers(customers)
 
+    def logout_customer(self, customer_id: str) -> None:
+        with self.repository.lock():
+            customers = self.repository.get_all_customers()
+            customer = self._find_active(customers, customer_id)
+
+            customer.tokenVersion += 1
+            self.repository.save_customers(customers)
+
     def _find_active(self, customers: list[Customer], customer_id: str) -> Customer:
         customer = next((c for c in customers if c.id == customer_id), None)
         if customer is None:
@@ -71,3 +84,16 @@ class CustomerService:
         # Deactivated accounts still hold their email, so it can't be reused for a new account
         if any(customer.email == email for customer in customers):
             raise DuplicateEmailError(f"A customer with email '{email}' already exists")
+    
+    def login_customer(self, request: LoginRequest) -> Customer:
+        email = request.email.lower()
+        customer = self.repository.get_customer_by_email(email)
+
+        if customer is None:
+            raise InvalidCredentialsError()
+        if not verify_password(request.password, customer.hashedPassword):
+            raise InvalidCredentialsError()
+        if not customer.isActive:
+            raise CustomerDeactivatedError(f"Customer with email '{email}' has been deactivated")
+
+        return customer

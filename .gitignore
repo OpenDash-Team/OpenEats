@@ -3,6 +3,9 @@ backend/.venv
 backend/data
 __pycache__
 .env
+.env.*
+!.env.example
+!.env.docker.example
 
 # Frontend
 frontend/logs

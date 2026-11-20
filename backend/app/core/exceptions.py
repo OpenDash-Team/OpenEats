@@ -12,6 +12,9 @@ class DuplicateEmailError(Exception):
 
 class CustomerDeactivatedError(Exception):
     """The customer's account has been deactivated."""
+    
+class InvalidCredentialsError(Exception):
+    """The email or password is incorrect."""
 
 class MenuItemNotFoundError(Exception):
     """No restaurant has a menu item with the given ID."""
