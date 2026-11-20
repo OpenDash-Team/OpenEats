@@ -192,7 +192,7 @@ On the startup screen, choose **Customer** to browse restaurants or **Restaurant
 
 The API provides the following endpoints:
 
-Customer login returns a bearer token. Include it in the `Authorization` header when calling the `/customers/me` and `/cart` endpoints.
+Customer login returns a bearer token. Include it in the `Authorization` header when calling the `/customers/me`, `/cart`, and `/orders/me` endpoints.
 
 | Method | Path | Description |
 |---|---|---|
@@ -209,6 +209,7 @@ Customer login returns a bearer token. Include it in the `Authorization` header 
 | POST | `/api/v1/login` | `Authenticates a customer and returns a bearer access token. Returns 200, 401 for invalid credentials or a deactivated account, 422 for invalid input.` |
 | POST | `/api/v1/logout` | `Logs out a customer and invalidates their token` |
 | GET | `/api/v1/customers/me` | `Returns the signed-in customer's info. Returns 401 if not signed in.` |
+| GET | `/api/v1/customers/{customer_id}/orders` | `Returns all orders for the specified customer id. No authentication required.` |
 | PATCH | `/api/v1/customers/me` | `Updates the signed-in customer's name, email, telephone or delivery address. Returns 200, 401, 409 if the email is taken, 422 for invalid input.` |
 | DELETE | `/api/v1/customers/me` | `Deactivates the signed-in customer's account (kept but marked inactive). Returns 204, 401 if not signed in.` |
 | GET | `/api/v1/cart` | `Returns the signed-in customer's active cart (creates an empty one the first time) with current prices, subtotal and total. Returns 200, 401 if not signed in.` |
@@ -216,6 +217,8 @@ Customer login returns a bearer token. Include it in the `Authorization` header 
 | PATCH | `/api/v1/cart/items/{menu_item_id}` | `Sets an item's quantity (1-99). Returns 200, 401, 404 if the item isn't in the cart or was removed from the menu, 409 if raising the quantity of an out of stock item, 422 for an invalid quantity.` |
 | DELETE | `/api/v1/cart/items/{menu_item_id}` | `Removes an item from the cart. Returns 200 with the updated cart, 401, 404 if the item isn't in the cart.` |
 | DELETE | `/api/v1/cart` | `Clears the cart. Returns 200 with the empty cart, 401 if not signed in.` |
+| GET | `/api/v1/orders/{order_id}` | `Returns the order with the specified id. No authentication required; returns 404 if not found.` |
+| GET | `/api/v1/orders/me` | `Returns all orders belonging to the signed-in customer. Returns 401 if not signed in.` |
 
 
 ## API Documentation
