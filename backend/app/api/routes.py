@@ -20,6 +20,10 @@ from ..services.customer_service import CustomerService
 from ..schemas.cart import CartResponse
 from ..schemas.cart_request import CartItemAdd, CartItemUpdate
 from ..services.cart_service import CartService
+from ..core.dependencies import get_checkout_service
+from ..services.checkout_service import CheckoutService
+from ..schemas.order import Order
+from ..core.exceptions import CheckoutValidationError, CheckoutPermissionError
 
 def create_routes(api: FastAPI | APIRouter):
     @api.get("/health")
@@ -327,3 +331,36 @@ def create_routes(api: FastAPI | APIRouter):
     @api.get("/{path:path}", include_in_schema=False)
     def api_not_found(path: str):
         raise HTTPException(status_code=404, detail="Not Found")
+
+    
+    @api.post(
+        "/checkout",
+        response_model=Order,
+        status_code=201,
+        summary="Checkout the current customer's active cart",
+        responses={
+            401: {"description": "Not authenticated"},
+            403: {"description": "Customer cannot check out"},
+            409: {"description": "Cart or menu validation failed"},
+        },
+    )
+    def checkout(
+        current_customer: Customer = Depends(get_current_customer),
+        checkout_service: CheckoutService = Depends(get_checkout_service),
+    ):
+        """
+        Validates the current cart, recalculates prices,
+        persists an order, and then closes the cart.
+        """
+
+        if current_customer is None:
+            raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"},)
+
+        try:
+            return checkout_service.checkout(current_customer)
+
+        except CheckoutPermissionError as e:
+            raise HTTPException(status_code=403, detail=str(e),) from e
+
+        except CheckoutValidationError as e:
+            raise HTTPException(status_code=409, detail=str(e),) from e
