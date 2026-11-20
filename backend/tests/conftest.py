@@ -28,6 +28,7 @@ from backend.app.schemas.restricted_diet import RestrictedDiet
 CURRENT_DIR = Path(__file__).resolve().parent
 REAL_DATA = CURRENT_DIR.parent / "data"
 TEST_DATA = CURRENT_DIR.parent / "tests/test-data"
+OWNER_ID = "cust0000000000000owner"
 
 #File must be exactly this name to be known as a pytest fixture file.
 
@@ -74,15 +75,23 @@ def sign_in_as():
     def make_client(customer_id):
         def fake_current_customer():
             try:
-                return get_customer_service().get_active_customer(customer_id)
+                customer = get_customer_service().get_active_customer(customer_id)
             except (CustomerNotFoundError, CustomerDeactivatedError):
                 raise HTTPException(status_code=401, detail="Not authenticated")
+            if customer is None:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            return customer
 
         app = main()
         app.dependency_overrides[get_current_customer] = fake_current_customer
         return TestClient(app)
 
     return make_client
+
+
+@pytest.fixture
+def owner_client(sign_in_as):
+    return sign_in_as(OWNER_ID)
 
 
 @pytest.fixture
