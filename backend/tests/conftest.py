@@ -91,32 +91,3 @@ def sign_in_as():
 def owner_client(sign_in_as):
     return sign_in_as(OWNER_ID)
 
-@pytest.fixture
-<<<<<<< HEAD
-def owner_client(sign_in_as):
-    return sign_in_as(OWNER_ID)
-=======
-def checkout_setup(tmp_path):
-    (service, customer, cart_repo, order_repo, _, _,) = checkout_setup
-    app = main()
-    app.dependency_overrides[get_current_customer] = (lambda: customer)
-    app.dependency_overrides[get_checkout_service] = (lambda: service)
-
-    try:
-        with TestClient(app) as client:
-            response = client.post("/api/v1/checkout")
-
-        assert response.status_code == 201
-        data = response.json()
-        assert data["customerId"] == customer.id
-        assert data["total"] == "10.98"
-        orders = order_repo.get_all_orders()
-        carts = cart_repo.get_all_carts()
-        assert len(orders) == 1
-        assert orders[0].id == data["id"]
-        assert orders[0].total == Decimal("10.98")
-        assert carts[0].status == "checkedOut"
-
-    finally:
-        app.dependency_overrides.clear()
->>>>>>> origin/feature/Checkout-and-Initial-Order-Creation
