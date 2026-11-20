@@ -206,7 +206,7 @@ Customer login returns a bearer token. Include it in the `Authorization` header 
 | PATCH | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Updates a menu item's fields. Returns 200, 404 if the item or restaurant is not found, 422 for invalid input.` |
 | DELETE | `/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` | `Deletes a specific menu item. Returns 204 on success, 404 if not found.` |
 | POST | `/api/v1/customers` | `Registers a customer. Returns 201 (without the password), 409 if the email is already registered, 422 for invalid input.` |
-| POST | `/api/v1/login` | `Authenticates a customer and returns a bearer access token. Returns 200, 401 for invalid credentials, 404 for a deactivated account, 422 for invalid input.` |
+| POST | `/api/v1/login` | `Authenticates a customer and returns a bearer access token. Returns 200, 401 for invalid credentials or a deactivated account, 422 for invalid input.` |
 | POST | `/api/v1/logout` | `Logs out a customer and invalidates their token` |
 | GET | `/api/v1/customers/me` | `Returns the signed-in customer's info. Returns 401 if not signed in.` |
 | PATCH | `/api/v1/customers/me` | `Updates the signed-in customer's name, email, telephone or delivery address. Returns 200, 401, 409 if the email is taken, 422 for invalid input.` |

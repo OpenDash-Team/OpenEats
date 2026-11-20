@@ -3,9 +3,8 @@ from pathlib import Path
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-
-from backend.app.repositories.cart_repository import CartRepository
-from backend.app.services.cart_service import CartService
+from ..repositories.cart_repository import CartRepository
+from ..services.cart_service import CartService
 
 from ..core.security import SECRET_KEY, ALGORITHM
 from ..repositories.customer_repository import CustomerRepository
@@ -35,7 +34,7 @@ def get_customer_service() -> CustomerService:
 
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=True)
 
 def get_cart_service() -> CartService:
     cart_repository = CartRepository(get_data_dir() / "carts.json")
@@ -43,11 +42,9 @@ def get_cart_service() -> CartService:
 
 
 def get_current_customer(
-    token: str | None = Depends(oauth2_scheme),
+    token: str = Depends(oauth2_scheme),
     customer_service: CustomerService = Depends(get_customer_service),
-) -> Customer | None:
-    if token is None:
-        return None
+) -> Customer:
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -59,9 +56,17 @@ def get_current_customer(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     customer = customer_service.get_active_customer(customer_id)
-    if customer is None or customer.token_version != token_version:
+    if customer is None or customer.tokenVersion != token_version:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     return customer
 
+
+def require_owner(
+    current_customer: Customer = Depends(get_current_customer),
+) -> Customer:
+    if current_customer.role != "owner":
+        raise HTTPException(status_code=403, detail="Owner role required")
+
+    return current_customer
 

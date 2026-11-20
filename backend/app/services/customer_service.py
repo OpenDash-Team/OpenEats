@@ -1,4 +1,4 @@
-from backend.app.schemas.login_request import LoginRequest
+from ..schemas.login_request import LoginRequest
 
 from ..core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError, InvalidCredentialsError
 from ..core.security import hash_password, verify_password
@@ -69,7 +69,7 @@ class CustomerService:
             customers = self.repository.get_all_customers()
             customer = self._find_active(customers, customer_id)
 
-            customer.token_version += 1
+            customer.tokenVersion += 1
             self.repository.save_customers(customers)
 
     def _find_active(self, customers: list[Customer], customer_id: str) -> Customer:

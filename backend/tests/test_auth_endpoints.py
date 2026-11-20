@@ -97,6 +97,18 @@ def test_login_rejects_wrong_password(client):
     assert "access_token" not in response.json()
 
 
+def test_login_rejects_short_wrong_password(client):
+    account, _ = register_customer(client)
+
+    response = client.post(
+        "/api/v1/login",
+        json={"email": account["email"], "password": "short"},
+    )
+
+    assert response.status_code == 401
+    assert "access_token" not in response.json()
+
+
 def test_login_rejects_unknown_email(client):
     response = client.post(
         "/api/v1/login",
@@ -118,7 +130,7 @@ def test_deactivated_customer_cannot_log_in_again(client):
         "/api/v1/login",
         json={"email": account["email"], "password": account["password"]},
     )
-    assert response.status_code == 404
+    assert response.status_code == 401
     assert "access_token" not in response.json()
 
 
@@ -182,7 +194,9 @@ def test_logout_invalidates_old_tokens_but_allows_login_again(client):
 
 
 def test_logout_requires_a_valid_token(client):
-    assert client.post("/api/v1/logout").status_code == 401
+    response = client.post("/api/v1/logout")
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
 
     old_token = create_access_token({"sub": "missing-customer", "ver": 0})
     response = client.post(

@@ -131,7 +131,7 @@ def test_deactivated_users_token_cannot_access_customer_or_cart_routes(client):
         "/api/v1/login",
         json={"email": account["email"], "password": PASSWORD},
     )
-    assert login_response.status_code == 404
+    assert login_response.status_code == 401
     assert "access_token" not in login_response.json()
 
 

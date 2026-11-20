@@ -169,12 +169,12 @@ def test_deactivated_customer_cannot_use_a_cart(alex):
     assert add(alex, DOLCE_LATTE).status_code == 401
 
 
-def test_item_marked_out_of_stock_by_restaurant_is_flagged_in_cart(client, alex):
+def test_item_marked_out_of_stock_by_restaurant_is_flagged_in_cart(owner_client, alex):
     add(alex, FRAPPUCCINO)
     add(alex, DOLCE_LATTE)
 
     # The restaurant marks the frappuccino out of stock through the menu item endpoint
-    response = client.patch(
+    response = owner_client.patch(
         f"/api/v1/restaurants/{STARBUCKS}/menu-items/{FRAPPUCCINO}",
         json={"offers": {"price": 5.95, "priceCurrency": "USD", "availability": "https://schema.org/OutOfStock"}},
     )
@@ -187,9 +187,9 @@ def test_item_marked_out_of_stock_by_restaurant_is_flagged_in_cart(client, alex)
     assert add(alex, FRAPPUCCINO).status_code == 409
 
 
-def test_raising_quantity_of_out_of_stock_item_returns_409(client, alex):
+def test_raising_quantity_of_out_of_stock_item_returns_409(owner_client, alex):
     add(alex, FRAPPUCCINO)
-    client.patch(
+    owner_client.patch(
         f"/api/v1/restaurants/{STARBUCKS}/menu-items/{FRAPPUCCINO}",
         json={"offers": {"price": 5.95, "priceCurrency": "USD", "availability": "https://schema.org/OutOfStock"}},
     )

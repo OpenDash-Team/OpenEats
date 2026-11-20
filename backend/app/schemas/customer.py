@@ -14,7 +14,7 @@ class Customer(BaseModel):
     name: str
     email: str
     hashedPassword: str
-    token_version: int = 0
+    tokenVersion: int = 0
     telephone: str | None = None
     address: str | None = None
     role: CustomerRole = "customer"

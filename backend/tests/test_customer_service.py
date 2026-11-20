@@ -166,12 +166,12 @@ def test_deactivate_unknown_customer_raises():
 # logout
 
 def test_logout_increments_token_version_and_saves_customer():
-    customer = existing(token_version=3)
+    customer = existing(tokenVersion=3)
     service, repository = make_service(customer)
 
     service.logout_customer("c1")
 
-    assert customer.token_version == 4
+    assert customer.tokenVersion == 4
     repository.save_customers.assert_called_once_with([customer])
 
 
