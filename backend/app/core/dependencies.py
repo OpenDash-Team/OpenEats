@@ -10,10 +10,11 @@ from ..core.security import SECRET_KEY, ALGORITHM
 from ..repositories.customer_repository import CustomerRepository
 from ..repositories.restaurant_repository import RestaurantRepository
 from ..schemas.customer import Customer
-from ..services.customer_service import CustomerService
 from ..services.checkout_service import CheckoutService
-from ..services.restaurant_service import RestaurantService
 from ..repositories.order_repository import OrderRepository
+from ..services.customer_service import CustomerService
+from ..services.restaurant_service import RestaurantService
+
 
 def get_data_dir() -> Path:
     data_dir = Path(__file__).resolve().parents[2] / "data"
@@ -40,7 +41,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=True)
 def get_cart_service() -> CartService:
     cart_repository = CartRepository(get_data_dir() / "carts.json")
     return CartService(cart_repository, get_restaurant_service())
-
 
 def get_current_customer(
     token: str = Depends(oauth2_scheme),

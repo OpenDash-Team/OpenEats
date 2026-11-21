@@ -219,6 +219,7 @@ Customer login returns a bearer token. Include it in the `Authorization` header 
 | DELETE | `/api/v1/cart` | `Clears the cart. Returns 200 with the empty cart, 401 if not signed in.` |
 | GET | `/api/v1/orders/{order_id}` | `Returns the order with the specified id. No authentication required; returns 404 if not found.` |
 | GET | `/api/v1/orders/me` | `Returns all orders belonging to the signed-in customer. Returns 401 if not signed in.` |
+| POST | `/api/v1/checkout` | `Checks out the signed-in customer's cart: checks availability and prices again, saves the order, then closes the cart. Returns 201 with the order, 401, 403 for owner or deactivated accounts, 409 if the cart is empty, has an unavailable item or there's no delivery address.` |
 
 
 ## API Documentation

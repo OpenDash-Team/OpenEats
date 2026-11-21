@@ -34,7 +34,7 @@ OWNER_ID = "cust0000000000000owner"
 
 @pytest.fixture(autouse=True)
 def isolated_data():
-    files_to_track = ["restaurants.json", "customers.json", "carts.json"]
+    files_to_track = ["restaurants.json", "customers.json", "carts.json", "orders.json"]
     
     for name in files_to_track:
         test_file = TEST_DATA / name
@@ -91,3 +91,67 @@ def sign_in_as():
 def owner_client(sign_in_as):
     return sign_in_as(OWNER_ID)
 
+
+@pytest.fixture
+def checkout_setup(tmp_path):
+    restaurant_repo = RestaurantRepository(tmp_path / "restaurants.json")
+    cart_repo = CartRepository(tmp_path / "carts.json")
+    order_repo = OrderRepository(tmp_path / "orders.json")
+
+    menu_item = MenuItem(
+        name="Test Latte",
+        description="A latte",
+        suitableForDiet=RestrictedDiet.VEGETARIAN,
+        offers=Offer(
+            price=Decimal("5.49"),
+            priceCurrency="CAD",
+            availability=ItemAvailability.IN_STOCK,
+        ),
+    )
+
+    restaurant = Restaurant(
+        name="Test Cafe",
+        address="123 Test Road",
+        telephone="1234567890",
+        openingHours="Mo-Fr 09:00-17:00",
+        hasMenu=Menu(
+            hasMenuSection=[
+                MenuSection(
+                    name="Drinks",
+                    hasMenuItem=[menu_item],
+                )
+            ]
+        ),
+    )
+
+    restaurant_repo.save_restaurants([restaurant])
+
+    customer = Customer(
+        name="Test Customer",
+        email="test@example.com",
+        hashedPassword="test-only-hash",
+        address="456 Customer Street",
+    )
+
+    cart = Cart(
+        customerId=customer.id,
+        restaurantId=restaurant.id,
+        items=[
+            CartItem(
+                menuItemId=menu_item.id,
+                quantity=2,
+            )
+        ],
+    )
+
+    cart_repo.save_carts([cart])
+
+    service = CheckoutService(
+        cart_repository=cart_repo,
+        order_repository=order_repo,
+        restaurant_service=RestaurantService(
+            restaurant_repo
+        ),
+    )
+
+    return (service,customer, cart_repo, order_repo, restaurant_repo, menu_item)

@@ -446,13 +446,6 @@ def create_routes(api: FastAPI | APIRouter):
         order_repository: OrderRepository = Depends(get_order_repository),
     ):
         return order_repository.get_orders_by_customer(customer_id)
-
-
-    @api.get("/", include_in_schema=False)
-    @api.get("/{path:path}", include_in_schema=False)
-    def api_not_found(path: str):
-        raise HTTPException(status_code=404, detail="Not Found")
-
     
     @api.post(
         "/checkout",
@@ -460,9 +453,9 @@ def create_routes(api: FastAPI | APIRouter):
         status_code=201,
         summary="Checkout the current customer's active cart",
         responses={
-            401: {"description": "Not authenticated"},
-            403: {"description": "Customer cannot check out"},
-            409: {"description": "Cart or menu validation failed"},
+            401: { "model": ErrorResponse, "description": "Not authenticated",},
+            403: {"model": ErrorResponse, "description": "Customer cannot check out",},
+            409: {"model": ErrorResponse, "description": "Cart or menu validation failed",},
         },
     )
     def checkout(
@@ -474,9 +467,6 @@ def create_routes(api: FastAPI | APIRouter):
         persists an order, and then closes the cart.
         """
 
-        if current_customer is None:
-            raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"},)
-
         try:
             return checkout_service.checkout(current_customer)
 
@@ -485,3 +475,9 @@ def create_routes(api: FastAPI | APIRouter):
 
         except CheckoutValidationError as e:
             raise HTTPException(status_code=409, detail=str(e),) from e
+
+
+    @api.get("/", include_in_schema=False)
+    @api.get("/{path:path}", include_in_schema=False)
+    def api_not_found(path: str):
+        raise HTTPException(status_code=404, detail="Not Found")
