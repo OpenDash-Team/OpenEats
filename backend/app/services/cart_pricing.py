@@ -12,7 +12,7 @@ class CartPricingError(Exception):
 def find_in_stock_offer(menu_item: MenuItem) -> Offer | None:
     offers = (menu_item.offers if isinstance(menu_item.offers, list) else [menu_item.offers])
 
-    return next((offer for offer in offers if offer is not None and offer.availability == ItemAvailability.IN_STOCK), None,)
+    return next((offer for offer in offers if offer.availability == ItemAvailability.IN_STOCK), None,)
 
 def price_cart(cart: Cart, menu_items: dict[str, tuple[str, MenuItem]], strict: bool = False,) -> CartResponse:
 
