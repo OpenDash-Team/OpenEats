@@ -1,6 +1,6 @@
 from decimal import Decimal
 import pytest
-from backend.app.core.exceptions import CheckoutValidationError
+from backend.app.core.exceptions import CheckoutValidationError, CheckoutPermissionError
 from backend.app.repositories.cart_repository import CartRepository
 from backend.app.repositories.order_repository import OrderRepository
 from backend.app.repositories.restaurant_repository import RestaurantRepository
@@ -78,3 +78,28 @@ def test_checkout_uses_current_menu_price(checkout_setup):
     assert order.items[0].unitPrice == Decimal("6.49")
     saved_order = order_repo.get_all_orders()[0]
     assert saved_order.total == Decimal("12.98")
+
+
+def test_checkout_rejects_empty_cart(checkout_setup):
+    service, customer, cart_repo, order_repo, _, _ = checkout_setup
+    carts = cart_repo.get_all_carts()
+    carts[0].items = []
+    cart_repo.save_carts(carts)
+    with pytest.raises(CheckoutValidationError):
+        service.checkout(customer)
+    assert order_repo.get_all_orders() == []
+    assert cart_repo.get_all_carts()[0].status == "active"
+
+def test_checkout_requires_delivery_address(checkout_setup):
+    service, customer, _, order_repo, _, _ = checkout_setup
+    customer.address = None
+    with pytest.raises(CheckoutValidationError):
+        service.checkout(customer)
+    assert order_repo.get_all_orders() == []
+
+def test_checkout_rejects_deactivated_customer(checkout_setup):
+    service, customer, _, order_repo, _, _ = checkout_setup
+    customer.isActive = False
+    with pytest.raises(CheckoutPermissionError):
+        service.checkout(customer)
+    assert order_repo.get_all_orders() == []
