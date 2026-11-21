@@ -4,6 +4,7 @@ from json import JSONDecodeError
 import os
 import tempfile
 import threading
+import time
 import warnings
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -12,6 +13,11 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 # (A new repository is created for each request, so the lock can't live on the object itself.)
 _file_locks: dict[Path, threading.RLock] = {}
 _file_locks_guard = threading.Lock()
+
+# On Windows, os.replace fails with PermissionError if another program (antivirus, search indexer)
+# has the file open for a moment, so the swap is retried a few times before giving up.
+REPLACE_ATTEMPTS = 5
+REPLACE_RETRY_DELAY = 0.05  # seconds
 
 
 class JsonRepository[T: BaseModel]:
@@ -58,7 +64,7 @@ class JsonRepository[T: BaseModel]:
                 temp_file_path = temp_file.name
                 json.dump([item.model_dump(mode="json") for item in items], temp_file, indent=4)
 
-            os.replace(temp_file_path, self.file_path)
+            self._replace_with_retry(temp_file_path)
             temp_file_path = None  # the temp file is now the real file
 
         except OSError as e:
@@ -71,3 +77,13 @@ class JsonRepository[T: BaseModel]:
                     os.remove(temp_file_path)
                 except FileNotFoundError:
                     pass
+
+    def _replace_with_retry(self, temp_file_path: str) -> None:
+        for attempt in range(1, REPLACE_ATTEMPTS + 1):
+            try:
+                os.replace(temp_file_path, self.file_path)
+                return
+            except PermissionError:
+                if attempt == REPLACE_ATTEMPTS:
+                    raise
+                time.sleep(REPLACE_RETRY_DELAY * attempt)

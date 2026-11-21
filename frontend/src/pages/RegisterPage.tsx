@@ -32,9 +32,9 @@ const RegisterPage = () => {
                     <Form.Control type="email" name="email" required placeholder="you@example.com" autoComplete="email" className="fs-7 bg-dark" />
                 </Form.Group>
 
-                <PasswordField controlId="registerPassword" name="password" label="Password" autoComplete="new-password" />
+                <PasswordField name="password" label="Password" autoComplete="new-password" />
 
-                <PasswordField controlId="registerConfirmPassword" name="confirmPassword" label="Confirm Password" autoComplete="new-password" />
+                <PasswordField name="confirmPassword" label="Confirm Password" autoComplete="new-password" />
 
                 <Button variant="light" type="submit" className="w-100 fs-7 fw-medium">Create Account</Button>
                 { message && <p role="status" className="text-secondary-emphasis fs-7 mt-3 mb-0">{message}</p> }

@@ -1,13 +1,14 @@
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
 
 import pytest
 
-from backend.app.core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError
-from backend.app.core.security import verify_password
+from backend.app.core.exceptions import CustomerDeactivatedError, CustomerNotFoundError, DuplicateEmailError, InvalidCredentialsError
+from backend.app.core.security import hash_password, verify_password
 from backend.app.repositories.customer_repository import CustomerRepository
 from backend.app.schemas.customer import Customer
 from backend.app.schemas.customer_request import CustomerCreate, CustomerUpdate
+from backend.app.schemas.login_request import LoginRequest
 from backend.app.services.customer_service import CustomerService
 
 
@@ -15,6 +16,11 @@ def make_service(*customers):
     # MagicMock (not Mock) so `with repository.lock():` works
     repository = MagicMock(spec=CustomerRepository)
     repository.get_all_customers.return_value = list(customers)
+    repository.get_customer_by_id.side_effect = lambda customer_id: next((c for c in customers if c.id == customer_id), None)
+    repository.get_customer_by_email.side_effect = lambda email: next(
+        (c for c in customers if c.email.lower() == email.lower()),
+        None,
+    )
     return CustomerService(repository), repository
 
 
@@ -55,18 +61,48 @@ def test_register_rejects_email_of_deactivated_account():
 
 # get
 
-def test_get_customer_raises_when_id_is_unknown():
+def test_get_active_customer_returns_none_when_id_is_unknown():
     service, _ = make_service()
 
-    with pytest.raises(CustomerNotFoundError):
-        service.get_active_customer("missing")
+    assert service.get_active_customer("missing") is None
 
 
-def test_get_active_customer_raises_for_deactivated_account():
+def test_get_active_customer_returns_none_for_deactivated_account():
     service, _ = make_service(existing(isActive=False))
 
+    assert service.get_active_customer("c1") is None
+
+
+# login
+
+def test_login_verifies_password_against_stored_hash():
+    customer = existing(hashedPassword=hash_password("password123"))
+    service, _ = make_service(customer)
+
+    assert service.login_customer(LoginRequest(email="alex@example.com", password="password123")) is customer
+
+
+def test_login_rejects_wrong_password():
+    customer = existing(hashedPassword=hash_password("password123"))
+    service, _ = make_service(customer)
+
+    with pytest.raises(InvalidCredentialsError):
+        service.login_customer(LoginRequest(email="alex@example.com", password="wrong-password"))
+
+
+def test_login_rejects_unknown_email():
+    service, _ = make_service()
+
+    with pytest.raises(InvalidCredentialsError):
+        service.login_customer(LoginRequest(email="missing@example.com", password="password123"))
+
+
+def test_login_rejects_deactivated_account_with_correct_password():
+    customer = existing(hashedPassword=hash_password("password123"), isActive=False)
+    service, _ = make_service(customer)
+
     with pytest.raises(CustomerDeactivatedError):
-        service.get_active_customer("c1")
+        service.login_customer(LoginRequest(email="alex@example.com", password="password123"))
 
 
 # update
@@ -127,26 +163,54 @@ def test_deactivate_unknown_customer_raises():
         service.deactivate_customer("missing")
 
 
+# logout
+
+def test_logout_increments_token_version_and_saves_customer():
+    customer = existing(tokenVersion=3)
+    service, repository = make_service(customer)
+
+    service.logout_customer("c1")
+
+    assert customer.tokenVersion == 4
+    repository.save_customers.assert_called_once_with([customer])
+
+
+def test_logout_unknown_customer_raises():
+    service, repository = make_service(existing())
+
+    with pytest.raises(CustomerNotFoundError):
+        service.logout_customer("missing")
+
+    repository.save_customers.assert_not_called()
+
+
+def test_logout_rejects_deactivated_customer():
+    customer = existing(isActive=False)
+    service, repository = make_service(customer)
+
+    with pytest.raises(CustomerDeactivatedError):
+        service.logout_customer("c1")
+
+    repository.save_customers.assert_not_called()
+
+
 # Regression: parallel sign-ups used to overwrite each other (found in review)
 
 def register_in_parallel(file_path, emails):
     file_path.write_text("[]")
-    results = []
 
     def register(email):
         # A new service + repository per call, like separate requests
         service = CustomerService(CustomerRepository(file_path))
         try:
             service.register_customer(CustomerCreate(name="Parallel", email=email, password="password123"))
-            results.append("ok")
+            return "ok"
         except DuplicateEmailError:
-            results.append("duplicate")
+            return "duplicate"
 
-    threads = [threading.Thread(target=register, args=(email,)) for email in emails]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
+    # map() re-raises any other error from a thread, so a failure shows the real cause
+    with ThreadPoolExecutor(max_workers=len(emails)) as executor:
+        results = list(executor.map(register, emails))
 
     return results, CustomerRepository(file_path).get_all_customers()
 

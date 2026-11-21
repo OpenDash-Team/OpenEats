@@ -1,5 +1,5 @@
-def test_create_menu_item_endpoint(client):
-    response = client.post(
+def test_create_menu_item_endpoint(owner_client):
+    response = owner_client.post(
         "/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "Test Mocha",
@@ -23,8 +23,8 @@ def test_create_menu_item_endpoint(client):
     assert data["description"] == "Chocolate and espresso"
     assert data["id"] is not None
 
-def test_create_menu_item_endpoint_invalid_restaurant(client):
-    response = client.post(
+def test_create_menu_item_endpoint_invalid_restaurant(owner_client):
+    response = owner_client.post(
         "/api/v1/restaurants/not-a-real-id/menu-items",
         json={
             "name": "Test Mocha",
@@ -66,15 +66,15 @@ def test_create_menu_item_endpoint_invalid_restaurant(client):
     # assert response.status_code == 422
 
 
-def test_create_menu_item_endpoint_invalid_body(client):
-    response = client.post(
+def test_create_menu_item_endpoint_invalid_body(owner_client):
+    response = owner_client.post(
         "/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={"description": "Missing required fields"})
 
     assert response.status_code == 422
 
-def test_update_menu_item_endpoint(client):
-    response = client.patch(
+def test_update_menu_item_endpoint(owner_client):
+    response = owner_client.patch(
         "/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW",
         json={"description": "Updated through API"})
 
@@ -82,16 +82,16 @@ def test_update_menu_item_endpoint(client):
     data = response.json()
     assert data["description"] == "Updated through API"
 
-def test_delete_menu_item_endpoint(client):
-    response = client.delete("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW")
+def test_delete_menu_item_endpoint(owner_client):
+    response = owner_client.delete("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW")
     assert response.status_code == 204
 
-def test_delete_menu_item_endpoint_invalid_item(client):
-    response = client.delete("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/not-a-real-item")
+def test_delete_menu_item_endpoint_invalid_item(owner_client):
+    response = owner_client.delete("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/not-a-real-item")
     assert response.status_code == 404
 
-def test_delete_menu_item_endpoint_invalid_restaurant(client):
-    response = client.delete("/api/v1/restaurants/not-a-real-restaurant/menu-items/F5hn9s3VD9qzKsLV4z8CW")
+def test_delete_menu_item_endpoint_invalid_restaurant(owner_client):
+    response = owner_client.delete("/api/v1/restaurants/not-a-real-restaurant/menu-items/F5hn9s3VD9qzKsLV4z8CW")
     assert response.status_code == 404
 
 # def test_delete_menu_item_endpoint_invalid_section(client):
@@ -99,8 +99,8 @@ def test_delete_menu_item_endpoint_invalid_restaurant(client):
 #     assert response.status_code == 404
 
 
-def test_create_menu_item_rejects_extra_fields(client):
-    response = client.post("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
+def test_create_menu_item_rejects_extra_fields(owner_client):
+    response = owner_client.post("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "Test Lemon Tea",
             "description": "Test item",
@@ -119,8 +119,8 @@ def test_create_menu_item_rejects_extra_fields(client):
     assert response.status_code == 422
 
 
-def test_create_menu_item_strips_whitespace(client):
-    response = client.post("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
+def test_create_menu_item_strips_whitespace(owner_client):
+    response = owner_client.post("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "   Test Lemon Tea   ",
             "description": "   Lemon and Tea   ",
@@ -143,14 +143,14 @@ def test_create_menu_item_strips_whitespace(client):
     assert data["description"] == "Lemon and Tea"
 
 
-def test_update_menu_item_rejects_empty_body(client):
-    response = client.patch("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW", json={})
+def test_update_menu_item_rejects_empty_body(owner_client):
+    response = owner_client.patch("/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items/F5hn9s3VD9qzKsLV4z8CW", json={})
 
     assert response.status_code == 422
 
 
-def test_create_menu_item_rejects_blank_name(client):
-    response = client.post(
+def test_create_menu_item_rejects_blank_name(owner_client):
+    response = owner_client.post(
         "/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "   ",
@@ -168,8 +168,8 @@ def test_create_menu_item_rejects_blank_name(client):
 
     assert response.status_code == 422
 
-def test_create_menu_item_rejects_negative_price(client):
-    response = client.post(
+def test_create_menu_item_rejects_negative_price(owner_client):
+    response = owner_client.post(
         "/api/v1/restaurants/NwYJoaOHusWdiqXpM7mQH/menu-items",
         json={
             "name": "Test Item",

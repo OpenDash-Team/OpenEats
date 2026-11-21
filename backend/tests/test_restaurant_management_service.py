@@ -2,6 +2,11 @@ import pytest
 from unittest.mock import Mock
 
 from backend.app.core.exceptions import DuplicateRestaurantError, RestaurantNotFoundError
+from backend.app.repositories.restaurant_repository import RestaurantRepository
+from backend.app.schemas.menu import Menu
+from backend.app.schemas.menu_item import MenuItem
+from backend.app.schemas.menu_section import MenuSection
+from backend.app.schemas.offer import Offer
 from backend.app.schemas.restaurant import Restaurant
 from backend.app.schemas.restaurant_request import RestaurantCreate, RestaurantUpdate
 from backend.app.services.restaurant_service import RestaurantService
@@ -114,3 +119,24 @@ def test_update_with_its_own_name_and_address_is_allowed(service):
     restaurant = service.update_restaurant("1", RestaurantUpdate(name="Pizza Palace", address="123 Main St"))
 
     assert restaurant.name == "Pizza Palace"
+
+
+# menu_items_by_id (used by the cart)
+
+def test_menu_items_by_id_finds_items_in_nested_sections():
+
+    def item(item_id):
+        return MenuItem(id=item_id, name=item_id, suitableForDiet=[], offers=Offer(price="1.00", priceCurrency="CAD", availability="https://schema.org/InStock"))
+
+    nested = MenuSection(id="drinks", name="Drinks", hasMenuItem=item("tea"))
+    top = MenuSection(id="main", name="Main", hasMenuItem=[item("burger")], hasMenuSection=[nested])
+    repository = Mock(spec=RestaurantRepository)
+    repository.get_all_restaurants.return_value = [
+        Restaurant(id="r1", name="A", address="1 St", telephone="+1-250-555-0100", openingHours="Mo-Su 09:00-17:00", hasMenu=Menu(hasMenuSection=top)),
+        Restaurant(id="r2", name="B", address="2 St", telephone="+1-250-555-0100", openingHours="Mo-Su 09:00-17:00"),
+    ]
+
+    menu_items = RestaurantService(repository).menu_items_by_id()
+
+    assert set(menu_items) == {"burger", "tea"}
+    assert menu_items["tea"][0] == "r1"
