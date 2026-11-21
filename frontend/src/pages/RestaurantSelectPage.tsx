@@ -4,6 +4,8 @@ import NewRestaurantCard from "../components/restaurant_select_page/NewRestauran
 import { useEffect, useState } from "react";
 import { fetchRestaurants } from "../api/fetchRestaurants";
 
+import { signOut } from '../services/signOut'
+
 const RestaurantSelectPage = () => {
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [error, setError] = useState("");
@@ -11,10 +13,6 @@ const RestaurantSelectPage = () => {
     useEffect(() => {
         fetchRestaurants().then(setRestaurants).catch((cause) => setError(cause instanceof Error ? cause.message : "Could not load restaurants"));
     }, []);
-    const backToViewSelector = () => {
-        localStorage.setItem("userMode", "");
-        window.location.replace('/')
-    }
 
     const newRestaurant = () => {
         localStorage.setItem("restaurantId", "new");
@@ -29,8 +27,8 @@ const RestaurantSelectPage = () => {
     return (
         <div data-bs-theme="dark" className="min-vh-100 bg-dark text-white py-4 d-flex flex-column" style={{paddingInline: "8rem"}}>
             <Container className="d-flex flex-column align-items-center gap-4 mt-4">
-                <Button variant="outline-secondary" className="fs-7 align-self-start mb-2" onClick = {backToViewSelector}>
-                    Back to View Selector
+                <Button variant="outline-danger" className="fs-7 align-self-start mb-2" onClick = {signOut}>
+                    Sign Out
                 </Button>
 
                 <Container>

@@ -3,6 +3,8 @@ import { IoAddCircleSharp } from "react-icons/io5";
 import { useState, type FormEvent } from "react";
 import { createRestaurant } from "../api/createRestaurant";
 
+import { signOut } from '../services/signOut'
+
 const CreateRestaurantPage = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -27,17 +29,13 @@ const CreateRestaurantPage = () => {
             setSaving(false);
         }
     };
-    const backToViewSelector = () => {
-        localStorage.setItem("userMode", "");
-        window.location.replace('/')
-    }
 
     return (
         <div data-bs-theme="dark" className="min-vh-100 bg-dark text-white py-4 d-flex flex-column" style={{paddingInline: "8rem"}}>
             <Container className="d-flex flex-column align-items-center mt-4 gap-5">
                 <Container className="d-flex flex-row justify-content-between gap-5">
-                    <Button variant="outline-secondary" className="fs-7 mb-2" onClick = {backToViewSelector}>
-                        Back to View Selector
+                    <Button variant="outline-danger" className="fs-7 mb-2" onClick = {signOut}>
+                        Sign Out
                     </Button>
 
                     <h2> New Restaurant</h2>

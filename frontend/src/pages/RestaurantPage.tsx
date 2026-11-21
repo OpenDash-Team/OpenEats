@@ -5,6 +5,7 @@ import UserPageLayout from "../components/shared/UserPageLayout";
 import MenuItemCard from "../components/restaurant_page/MenuItemCard";
 import MenuSection from "../components/restaurant_page/MenuSection";
 import { fetchRestaurantDetails } from "../api/fetchRestaurantDetails";
+import { addCartItem } from "../api/addCartItem";
 
 const asArray = <T,>(value: T | T[] | null | undefined): T[] =>
     value == null ? [] : Array.isArray(value) ? value : [value];
@@ -13,7 +14,7 @@ const renderSection = (section: MenuSection) => (
     <MenuSection key={section.id} title={section.name}>
         {asArray(section.hasMenuItem).map((item) => {
             const offer = asArray(item.offers)[0];
-            return <MenuItemCard key={item.id} title={item.name} description={item.description} price={Number(offer.price)} currency={offer.priceCurrency} availability={offer.availability} />;
+            return <MenuItemCard key={item.id} title={item.name} description={item.description} price={Number(offer.price)} currency={offer.priceCurrency} availability={offer.availability} onAddToCart={async (quantity) => { await addCartItem(item.id, quantity); }} />;
         })}
         {asArray(section.hasMenuSection).map(renderSection)}
     </MenuSection>

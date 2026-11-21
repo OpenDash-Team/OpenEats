@@ -18,9 +18,21 @@ function errorMessage(detail: unknown, status: number): string {
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`/api/v${API_VERSION}${path}`, init);
+    const token = localStorage.getItem("token");
+    const headers = new Headers(init?.headers);
+
+    if (token && path !== "/login" && path !== "/customers" && !headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    const response = await fetch(`/api/v${API_VERSION}${path}`, { ...init, headers });
 
     if (!response.ok) {
+        if (response.status === 401 && token && headers.get("Authorization") === `Bearer ${token}` && localStorage.getItem("token") === token) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("userMode");
+            window.dispatchEvent(new Event("session-expired"));
+        }
         const body = await response.json().catch(() => null);
         throw new Error(errorMessage(body?.detail, response.status));
     }
