@@ -1,13 +1,10 @@
-from decimal import Decimal
 from ..core.exceptions import CheckoutValidationError, CheckoutPermissionError
 from ..repositories.cart_repository import CartRepository
 from ..repositories.order_repository import OrderRepository
 from ..services.restaurant_service import RestaurantService
-from ..services.cart_service import round_money
-from ..schemas.cart import MAX_QUANTITY
 from ..schemas.customer import Customer
-from ..schemas.item_availability import ItemAvailability
 from ..schemas.order import Order, OrderItem
+from .cart_pricing import CartPricingError, price_cart
 
 class CheckoutService:
     def __init__(
@@ -34,7 +31,7 @@ class CheckoutService:
 
         with self.cart_repository.lock(): # lock the cart during the checkout operation.
             carts = self.cart_repository.get_all_carts()
-            cart = next((c for c in carts if c.customerId == customer.id and c.status == "active"), None)
+            cart = self.cart_repository.find_active_cart(carts, customer.id,)
 
             if cart is None:
                 raise CheckoutValidationError("No active cart found")
@@ -61,58 +58,25 @@ class CheckoutService:
                 if restaurant is None:
                     raise CheckoutValidationError("Restaurant no longer exists")
 
-                menu_items = (self.restaurant_service.menu_items_by_id())
+
+                menu_items = self.restaurant_service.menu_items_by_id() # retrieve current menu information
+
+                # now it calculates prices using the same implementation as CartService
+                try:
+                    priced_cart = price_cart(cart, menu_items, strict=True,)
+                except CartPricingError as e:
+                    raise CheckoutValidationError(str(e)) from e
 
                 order_items = []
-                subtotal = Decimal("0.00")
-                currency = None
 
-                # validate and reprice every item
-                for cart_item in cart.items:
+                for item in priced_cart.items:
+                    order_items.append(OrderItem(menuItemId=item.menuItemId, name=item.name, quantity=item.quantity, unitPrice=item.unitPrice, lineTotal=item.lineTotal))
 
-                    if not 1 <= cart_item.quantity <= MAX_QUANTITY:
-                        raise CheckoutValidationError("Invalid item quantity")
+                subtotal = priced_cart.subtotal
+                total = priced_cart.total
+                currency = priced_cart.currency
 
-                    result = menu_items.get(cart_item.menuItemId)
-
-                    if result is None:
-                        raise CheckoutValidationError(f"Menu item '{cart_item.menuItemId}' no longer exists")
-
-                    restaurant_id, menu_item = result
-
-                    if restaurant_id != cart.restaurantId:
-                        raise CheckoutValidationError("Cart contains an item from another restaurant")
-
-                    offers = (menu_item.offers if isinstance(menu_item.offers, list)else [menu_item.offers])
-
-                    offer = next((o for o in offers if o.availability == ItemAvailability.IN_STOCK), None)
-
-                    if offer is None:
-                        raise CheckoutValidationError(f"'{menu_item.name}' is unavailable")
-
-                    # one currency per order
-                    if currency is None:
-                        currency = offer.priceCurrency
-                    elif currency != offer.priceCurrency:
-                        raise CheckoutValidationError("Items have different currencies")
-
-                    unit_price = offer.price
-                    line_total = round_money(unit_price * cart_item.quantity)
-
-                    subtotal += line_total
-
-                    order_items.append(
-                        OrderItem(
-                            menuItemId=menu_item.id,
-                            name=menu_item.name,
-                            quantity=cart_item.quantity,
-                            unitPrice=unit_price,
-                            lineTotal=line_total,
-                        )
-                    )
-
-                subtotal = round_money(subtotal)
-                total = subtotal
+                assert currency is not None
 
                 new_order = Order(
                     customerId=customer.id,

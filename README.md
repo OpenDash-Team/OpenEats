@@ -216,6 +216,7 @@ Customer login returns a bearer token. Include it in the `Authorization` header 
 | PATCH | `/api/v1/cart/items/{menu_item_id}` | `Sets an item's quantity (1-99). Returns 200, 401, 404 if the item isn't in the cart or was removed from the menu, 409 if raising the quantity of an out of stock item, 422 for an invalid quantity.` |
 | DELETE | `/api/v1/cart/items/{menu_item_id}` | `Removes an item from the cart. Returns 200 with the updated cart, 401, 404 if the item isn't in the cart.` |
 | DELETE | `/api/v1/cart` | `Clears the cart. Returns 200 with the empty cart, 401 if not signed in.` |
+| POST | `/api/v1/checkout` | `Checks out the signed-in customer's cart: checks availability and prices again, saves the order, then closes the cart. Returns 201 with the order, 401, 403 for owner or deactivated accounts, 409 if the cart is empty, has an unavailable item or there's no delivery address.` |
 
 
 ## API Documentation

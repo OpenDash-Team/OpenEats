@@ -15,7 +15,11 @@ class CartRepository(JsonRepository[Cart]):
         self._save_all(carts)
 
     def get_active_cart(self, customer_id: str) -> Cart | None:
-        for cart in self.get_all_carts():
-            if cart.customerId == customer_id and cart.status == "active":
-                return cart
-        return None
+        carts = self.get_all_carts()
+        return self.find_active_cart(carts, customer_id)
+
+
+    @staticmethod
+    def find_active_cart(carts: list[Cart], customer_id: str,) -> Cart | None:
+        return next((cart for cart in carts if cart.customerId == customer_id and cart.status == "active"), None)
+
