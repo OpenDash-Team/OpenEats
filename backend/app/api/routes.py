@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, APIRouter, Path
 from json import JSONDecodeError
-from ..core.dependencies import get_restaurant_service, get_customer_service, get_current_customer, get_cart_service, require_owner
+from ..core.dependencies import get_restaurant_service, get_customer_service, get_current_customer, get_cart_service, require_owner, get_order_repository
 from ..schemas.restaurant import Restaurant
 from ..schemas.restaurant_query import RestaurantQuery
 from ..services.restaurant_service import RestaurantService
@@ -22,6 +22,7 @@ from ..core.dependencies import get_checkout_service
 from ..services.checkout_service import CheckoutService
 from ..schemas.order import Order
 from ..core.exceptions import CheckoutValidationError, CheckoutPermissionError
+from ..repositories.order_repository import OrderRepository
 
 def create_routes(api: FastAPI | APIRouter):
     @api.get("/health")
@@ -405,6 +406,47 @@ def create_routes(api: FastAPI | APIRouter):
         except CustomerDeactivatedError as e:
             raise HTTPException(status_code=401, detail=str(e))
 
+
+    @api.get(
+        "/orders/me",
+        response_model=list[Order],
+        summary="Get own customer's orders",
+        responses={401: {"model": ErrorResponse, "description": "Not signed in"}},
+    )
+    def get_my_orders(
+        current_customer: Customer = Depends(get_current_customer),
+        order_repository: OrderRepository = Depends(get_order_repository),
+    ):
+        return order_repository.get_orders_by_customer(current_customer.id)
+
+
+    @api.get(
+        "/orders/{order_id}",
+        response_model=Order,
+        summary="Get an order by id",
+        responses={404: {"model": ErrorResponse, "description": "Order not found"}},
+    )
+    def get_order_by_id(
+        order_id: str,
+        order_repository: OrderRepository = Depends(get_order_repository),
+    ):
+        order = order_repository.get_order_by_id(order_id)
+        if order is None:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return order
+
+
+    @api.get(
+        "/customers/{customer_id}/orders",
+        response_model=list[Order],
+        summary="Get orders by customer id",
+    )
+    def get_orders_by_customer_id(
+        customer_id: str,
+        order_repository: OrderRepository = Depends(get_order_repository),
+    ):
+        return order_repository.get_orders_by_customer(customer_id)
+    
     @api.post(
         "/checkout",
         response_model=Order,

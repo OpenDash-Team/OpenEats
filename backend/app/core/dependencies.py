@@ -76,3 +76,7 @@ def get_checkout_service() -> CheckoutService:
     order_repository = OrderRepository(get_data_dir() / "orders.json")
     restaurant_service = get_restaurant_service()
     return CheckoutService(cart_repository=cart_repository, order_repository=order_repository,restaurant_service=restaurant_service,)
+
+
+def get_order_repository() -> OrderRepository:
+    return OrderRepository(get_data_dir() / "orders.json")
