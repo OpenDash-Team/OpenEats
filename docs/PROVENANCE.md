@@ -126,3 +126,13 @@ Entry 13
 - Influence: Used and adapted the generated implementation.
 - Validation: Manual checking, unit tests, and teammate review
 - PR: #85
+
+Entry 14
+- Student(s): Rameez
+- Artifact: frontend/src/api/fetchOrders.ts; frontend/src/pages/OrdersPage.tsx; frontend/src/components/orders_page/OrderCard.tsx
+- Label: AI-GENERATED
+- AI tool: Codex
+- Purpose: To quickly integrate the orders page with the backend endpoint.
+- Influence: Codex implemented the API function, called the function on the orders page and returned the data.
+- Validation: Manual checking and teammate review
+- PR: #89
