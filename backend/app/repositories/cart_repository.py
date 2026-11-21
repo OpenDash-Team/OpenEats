@@ -21,5 +21,5 @@ class CartRepository(JsonRepository[Cart]):
 
     @staticmethod
     def find_active_cart(carts: list[Cart], customer_id: str,) -> Cart | None:
-        return next((cart for cart in carts if cart.customerId == customer_id and cart.status == "active"), None,)
+        return next((cart for cart in carts if cart.customerId == customer_id and cart.status == "active"), None)
 

@@ -1,6 +1,7 @@
 from decimal import Decimal
 import pytest
-from backend.app.services.cart_pricing import (CartPricingError, price_cart,)
+from backend.app.schemas.item_availability import ItemAvailability
+from backend.app.services.cart_pricing import CartPricingError, price_cart
 
 
 def test_cart_and_checkout_use_same_prices(checkout_setup):

@@ -1,5 +1,3 @@
-from decimal import ROUND_HALF_UP, Decimal
-
 from ..core.exceptions import (
     CartItemNotFoundError,
     CartQuantityError,
@@ -9,20 +7,12 @@ from ..core.exceptions import (
     MenuItemUnavailableError,
 )
 from ..repositories.cart_repository import CartRepository
-from ..schemas.cart import MAX_QUANTITY, Cart, CartItem, CartItemResponse, CartResponse
+from ..schemas.cart import MAX_QUANTITY, Cart, CartItem, CartResponse
 from ..schemas.cart_request import CartItemAdd, CartItemUpdate
 from ..schemas.customer import Customer
-from ..schemas.item_availability import ItemAvailability
 from ..schemas.menu_item import MenuItem
-from ..schemas.offer import Offer
 from .restaurant_service import RestaurantService
-from .money import round_money
 from .cart_pricing import find_in_stock_offer, price_cart
-
-
-def round_money(amount: Decimal) -> Decimal:
-    # Normal rounding to cents (0.125 -> 0.13), Decimal rounds half to even by default
-    return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 class CartService:
@@ -43,7 +33,7 @@ class CartService:
                 carts.append(cart)
                 self.repository.save_carts(carts)
 
-        return self._to_response(cart, self.restaurant_service.menu_items_by_id())
+        return price_cart(cart, self.restaurant_service.menu_items_by_id())
 
     def add_item(self, customer: Customer, request: CartItemAdd) -> CartResponse:
         self._check_customer_active(customer)
@@ -70,7 +60,7 @@ class CartService:
             cart.restaurantId = restaurant_id
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, menu_items)
+        return price_cart(cart, menu_items)
 
     def update_item_quantity(self, customer: Customer, menu_item_id: str, request: CartItemUpdate) -> CartResponse:
         self._check_customer_active(customer)
@@ -88,7 +78,7 @@ class CartService:
             cart_item.quantity = request.quantity
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, menu_items)
+        return price_cart(cart, menu_items)
 
     def remove_item(self, customer: Customer, menu_item_id: str) -> CartResponse:
         # Works even if the item went out of stock or was deleted from the menu
@@ -104,7 +94,7 @@ class CartService:
 
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, self.restaurant_service.menu_items_by_id())
+        return price_cart(cart, self.restaurant_service.menu_items_by_id())
 
     def clear_cart(self, customer: Customer) -> CartResponse:
         self._check_customer_active(customer)
@@ -117,10 +107,8 @@ class CartService:
             cart.restaurantId = None
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, {})  # empty cart, nothing to price
+        return price_cart(cart, {})  # empty cart, nothing to price
 
-    def _to_response(self, cart: Cart, menu_items: dict[str, tuple[str, MenuItem]],) -> CartResponse:
-        return price_cart(cart, menu_items, strict=False)
 
     def _check_customer_active(self, customer: Customer) -> None:
         if not customer.isActive:
@@ -157,8 +145,3 @@ class CartService:
             raise MenuItemUnavailableError(f"'{menu_item.name}' is not available right now")
 
         return restaurant_id, menu_item
-
-    def _in_stock_offer(self, menu_item: MenuItem) -> Offer | None:
-        # An item can have one offer or a list, the first one in stock sets the price
-        offers = menu_item.offers if isinstance(menu_item.offers, list) else [menu_item.offers]
-        return next((offer for offer in offers if offer.availability == ItemAvailability.IN_STOCK), None)

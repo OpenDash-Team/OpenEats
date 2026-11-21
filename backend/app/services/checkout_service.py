@@ -70,18 +70,7 @@ class CheckoutService:
                 order_items = []
 
                 for item in priced_cart.items:
-                    assert item.name is not None
-                    assert item.unitPrice is not None
-
-                    order_items.append(
-                        OrderItem(
-                            menuItemId=item.menuItemId,
-                            name=item.name,
-                            quantity=item.quantity,
-                            unitPrice=item.unitPrice,
-                            lineTotal=item.lineTotal,
-                        )
-                    )
+                    order_items.append(OrderItem(menuItemId=item.menuItemId, name=item.name, quantity=item.quantity, unitPrice=item.unitPrice, lineTotal=item.lineTotal))
 
                 subtotal = priced_cart.subtotal
                 total = priced_cart.total
