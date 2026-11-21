@@ -34,7 +34,7 @@ OWNER_ID = "cust0000000000000owner"
 
 @pytest.fixture(autouse=True)
 def isolated_data():
-    files_to_track = ["restaurants.json", "customers.json", "carts.json"]
+    files_to_track = ["restaurants.json", "customers.json", "carts.json", "orders.json"]
     
     for name in files_to_track:
         test_file = TEST_DATA / name
