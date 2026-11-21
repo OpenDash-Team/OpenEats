@@ -1,12 +1,9 @@
-from decimal import Decimal
 from ..core.exceptions import CheckoutValidationError, CheckoutPermissionError
 from ..repositories.cart_repository import CartRepository
 from ..repositories.order_repository import OrderRepository
+from ..services.cart_service import CartService
 from ..services.restaurant_service import RestaurantService
-from ..services.cart_service import round_money
-from ..schemas.cart import MAX_QUANTITY
 from ..schemas.customer import Customer
-from ..schemas.item_availability import ItemAvailability
 from ..schemas.order import Order, OrderItem
 
 class CheckoutService:
@@ -19,6 +16,8 @@ class CheckoutService:
         self.cart_repository = cart_repository
         self.order_repository = order_repository
         self.restaurant_service = restaurant_service
+        # prices come from the same code the cart uses, so checkout and cart totals can't differ
+        self.cart_service = CartService(cart_repository, restaurant_service)
 
     def checkout(self, customer: Customer) -> Order:
 
@@ -42,97 +41,45 @@ class CheckoutService:
             # lock orders while checking and saving
             with self.order_repository.lock():
                 # Recovery if an earlier attempt saved the order but failed to close the cart
-                existing_order = (self.order_repository.get_order_by_cart_id(cart.id))
+                existing_order = self.order_repository.get_order_by_cart_id(cart.id)
 
                 if existing_order is not None:
                     cart.status = "checkedOut"
                     self.cart_repository.save_carts(carts)
                     return existing_order
 
-                # validate the cart
                 if not cart.items:
                     raise CheckoutValidationError("Cannot check out an empty cart")
 
-                if not cart.restaurantId:
-                    raise CheckoutValidationError("Cart has no restaurant")
+                # revalidate availability and prices with the current menu
+                priced_cart = self.cart_service.price_cart(cart, self.restaurant_service.menu_items_by_id())
 
-                restaurant = (self.restaurant_service.get_restaurant_by_id(cart.restaurantId))
-
-                if restaurant is None:
-                    raise CheckoutValidationError("Restaurant no longer exists")
-
-                menu_items = (self.restaurant_service.menu_items_by_id())
-
-                order_items = []
-                subtotal = Decimal("0.00")
-                currency = None
-
-                # validate and reprice every item
-                for cart_item in cart.items:
-
-                    if not 1 <= cart_item.quantity <= MAX_QUANTITY:
-                        raise CheckoutValidationError("Invalid item quantity")
-
-                    result = menu_items.get(cart_item.menuItemId)
-
-                    if result is None:
-                        raise CheckoutValidationError(f"Menu item '{cart_item.menuItemId}' no longer exists")
-
-                    restaurant_id, menu_item = result
-
-                    if restaurant_id != cart.restaurantId:
-                        raise CheckoutValidationError("Cart contains an item from another restaurant")
-
-                    offers = (menu_item.offers if isinstance(menu_item.offers, list)else [menu_item.offers])
-
-                    offer = next((o for o in offers if o.availability == ItemAvailability.IN_STOCK), None)
-
-                    if offer is None:
-                        raise CheckoutValidationError(f"'{menu_item.name}' is unavailable")
-
-                    # one currency per order
-                    if currency is None:
-                        currency = offer.priceCurrency
-                    elif currency != offer.priceCurrency:
-                        raise CheckoutValidationError("Items have different currencies")
-
-                    unit_price = offer.price
-                    line_total = round_money(unit_price * cart_item.quantity)
-
-                    subtotal += line_total
-
-                    order_items.append(
-                        OrderItem(
-                            menuItemId=menu_item.id,
-                            name=menu_item.name,
-                            quantity=cart_item.quantity,
-                            unitPrice=unit_price,
-                            lineTotal=line_total,
-                        )
-                    )
-
-                subtotal = round_money(subtotal)
-                total = subtotal
+                for item in priced_cart.items:
+                    if item.name is None:
+                        raise CheckoutValidationError(f"Menu item '{item.menuItemId}' no longer exists")
+                    if not item.available:
+                        raise CheckoutValidationError(f"'{item.name}' is unavailable")
 
                 new_order = Order(
                     customerId=customer.id,
                     restaurantId=cart.restaurantId,
                     cartId=cart.id,
-                    items=order_items,
-                    currency=currency,
-                    subtotal=subtotal,
-                    total=total,
+                    items=[
+                        OrderItem(menuItemId=item.menuItemId, name=item.name, quantity=item.quantity, unitPrice=item.unitPrice, lineTotal=item.lineTotal)
+                        for item in priced_cart.items
+                    ],
+                    currency=priced_cart.currency,
+                    subtotal=priced_cart.subtotal,
+                    total=priced_cart.total,
                     deliveryAddress=customer.address,
                 )
 
                 # persist the order first
                 orders = self.order_repository.get_all_orders()
                 orders.append(new_order)
-
                 self.order_repository.save_orders(orders)
 
-                # only lose the cart only after successful
+                # close the cart only after the order is saved
                 cart.status = "checkedOut"
                 self.cart_repository.save_carts(carts)
                 return new_order
-            

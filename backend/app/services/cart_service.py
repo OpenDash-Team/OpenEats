@@ -41,7 +41,7 @@ class CartService:
                 carts.append(cart)
                 self.repository.save_carts(carts)
 
-        return self._to_response(cart, self.restaurant_service.menu_items_by_id())
+        return self.price_cart(cart, self.restaurant_service.menu_items_by_id())
 
     def add_item(self, customer: Customer, request: CartItemAdd) -> CartResponse:
         self._check_customer_active(customer)
@@ -68,7 +68,7 @@ class CartService:
             cart.restaurantId = restaurant_id
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, menu_items)
+        return self.price_cart(cart, menu_items)
 
     def update_item_quantity(self, customer: Customer, menu_item_id: str, request: CartItemUpdate) -> CartResponse:
         self._check_customer_active(customer)
@@ -86,7 +86,7 @@ class CartService:
             cart_item.quantity = request.quantity
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, menu_items)
+        return self.price_cart(cart, menu_items)
 
     def remove_item(self, customer: Customer, menu_item_id: str) -> CartResponse:
         # Works even if the item went out of stock or was deleted from the menu
@@ -102,7 +102,7 @@ class CartService:
 
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, self.restaurant_service.menu_items_by_id())
+        return self.price_cart(cart, self.restaurant_service.menu_items_by_id())
 
     def clear_cart(self, customer: Customer) -> CartResponse:
         self._check_customer_active(customer)
@@ -115,9 +115,9 @@ class CartService:
             cart.restaurantId = None
             self.repository.save_carts(carts)
 
-        return self._to_response(cart, {})  # empty cart, nothing to price
+        return self.price_cart(cart, {})  # empty cart, nothing to price
 
-    def _to_response(self, cart: Cart, menu_items: dict[str, tuple[str, MenuItem]]) -> CartResponse:
+    def price_cart(self, cart: Cart, menu_items: dict[str, tuple[str, MenuItem]]) -> CartResponse:
         """Prices the cart with current menu prices. Items that can't be ordered are shown but not counted."""
         response_items = []
         subtotal = Decimal("0.00")

@@ -425,9 +425,6 @@ def create_routes(api: FastAPI | APIRouter):
         persists an order, and then closes the cart.
         """
 
-        if current_customer is None:
-            raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"},)
-
         try:
             return checkout_service.checkout(current_customer)
 
