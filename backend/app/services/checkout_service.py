@@ -34,8 +34,8 @@ class CheckoutService:
 
         with self.cart_repository.lock(): # lock the cart during the checkout operation.
             carts = self.cart_repository.get_all_carts()
-            cart = next((c for c in carts if c.customerId == customer.id and c.status == "active"), None)
-
+            cart = self.cart_repository.find_active_cart(carts, customer.id,)
+            
             if cart is None:
                 raise CheckoutValidationError("No active cart found")
 

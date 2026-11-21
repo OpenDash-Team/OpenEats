@@ -157,9 +157,8 @@ class CartService:
         if not customer.isActive:
             raise CustomerDeactivatedError(f"Customer with id '{customer.id}' is deactivated")
 
-    def _find_active_cart(self, carts: list[Cart], customer_id: str) -> Cart | None:
-        # Each customer has at most one active cart
-        return next((cart for cart in carts if cart.customerId == customer_id and cart.status == "active"), None)
+    def _find_active_cart(self, carts: list[Cart], customer_id: str,) -> Cart | None:
+        return self.repository.find_active_cart(carts, customer_id,)
 
     def _find_or_create_active_cart(self, carts: list[Cart], customer_id: str) -> Cart:
         cart = self._find_active_cart(carts, customer_id)
