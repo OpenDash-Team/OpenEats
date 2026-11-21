@@ -3,7 +3,6 @@ from ..schemas.cart import Cart, CartItemResponse, CartResponse
 from ..schemas.item_availability import ItemAvailability
 from ..schemas.menu_item import MenuItem
 from ..schemas.offer import Offer
-from .cart_service import round_money
 from .money import round_money
 
 class CartPricingError(Exception):
