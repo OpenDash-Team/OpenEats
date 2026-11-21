@@ -16,6 +16,8 @@ from ..schemas.item_availability import ItemAvailability
 from ..schemas.menu_item import MenuItem
 from ..schemas.offer import Offer
 from .restaurant_service import RestaurantService
+from .money import round_money
+from .cart_pricing import find_in_stock_offer, price_cart
 
 
 def round_money(amount: Decimal) -> Decimal:
@@ -41,7 +43,7 @@ class CartService:
                 carts.append(cart)
                 self.repository.save_carts(carts)
 
-        return self.price_cart(cart, self.restaurant_service.menu_items_by_id())
+        return self._to_response(cart, self.restaurant_service.menu_items_by_id())
 
     def add_item(self, customer: Customer, request: CartItemAdd) -> CartResponse:
         self._check_customer_active(customer)
@@ -68,7 +70,7 @@ class CartService:
             cart.restaurantId = restaurant_id
             self.repository.save_carts(carts)
 
-        return self.price_cart(cart, menu_items)
+        return self._to_response(cart, menu_items)
 
     def update_item_quantity(self, customer: Customer, menu_item_id: str, request: CartItemUpdate) -> CartResponse:
         self._check_customer_active(customer)
@@ -86,7 +88,7 @@ class CartService:
             cart_item.quantity = request.quantity
             self.repository.save_carts(carts)
 
-        return self.price_cart(cart, menu_items)
+        return self._to_response(cart, menu_items)
 
     def remove_item(self, customer: Customer, menu_item_id: str) -> CartResponse:
         # Works even if the item went out of stock or was deleted from the menu
@@ -102,7 +104,7 @@ class CartService:
 
             self.repository.save_carts(carts)
 
-        return self.price_cart(cart, self.restaurant_service.menu_items_by_id())
+        return self._to_response(cart, self.restaurant_service.menu_items_by_id())
 
     def clear_cart(self, customer: Customer) -> CartResponse:
         self._check_customer_active(customer)
@@ -115,51 +117,17 @@ class CartService:
             cart.restaurantId = None
             self.repository.save_carts(carts)
 
-        return self.price_cart(cart, {})  # empty cart, nothing to price
+        return self._to_response(cart, {})  # empty cart, nothing to price
 
-    def price_cart(self, cart: Cart, menu_items: dict[str, tuple[str, MenuItem]]) -> CartResponse:
-        """Prices the cart with current menu prices. Items that can't be ordered are shown but not counted."""
-        response_items = []
-        subtotal = Decimal("0.00")
-        currency = None
-
-        for cart_item in cart.items:
-            _, menu_item = menu_items.get(cart_item.menuItemId, (None, None))
-            offer = self._in_stock_offer(menu_item) if menu_item is not None else None
-
-            if offer is None:
-                line_total = Decimal("0.00")
-            else:
-                line_total = round_money(offer.price * cart_item.quantity)
-                subtotal += line_total
-                currency = offer.priceCurrency
-
-            response_items.append(CartItemResponse(
-                menuItemId=cart_item.menuItemId,
-                name=menu_item.name if menu_item is not None else None,
-                quantity=cart_item.quantity,
-                unitPrice=offer.price if offer is not None else None,
-                lineTotal=line_total,
-                available=offer is not None,
-            ))
-
-        return CartResponse(
-            id=cart.id,
-            customerId=cart.customerId,
-            restaurantId=cart.restaurantId,
-            items=response_items,
-            currency=currency,
-            subtotal=subtotal,
-            total=subtotal,  # no fees or tax yet
-        )
+    def _to_response(self, cart: Cart, menu_items: dict[str, tuple[str, MenuItem]],) -> CartResponse:
+        return price_cart(cart, menu_items, strict=False)
 
     def _check_customer_active(self, customer: Customer) -> None:
         if not customer.isActive:
             raise CustomerDeactivatedError(f"Customer with id '{customer.id}' is deactivated")
 
-    def _find_active_cart(self, carts: list[Cart], customer_id: str) -> Cart | None:
-        # Each customer has at most one active cart
-        return next((cart for cart in carts if cart.customerId == customer_id and cart.status == "active"), None)
+    def _find_active_cart(self, carts: list[Cart], customer_id: str,) -> Cart | None:
+        return self.repository.find_active_cart(carts, customer_id,)
 
     def _find_or_create_active_cart(self, carts: list[Cart], customer_id: str) -> Cart:
         cart = self._find_active_cart(carts, customer_id)
@@ -179,12 +147,13 @@ class CartService:
 
         return cart, cart_item
 
-    def _find_orderable_menu_item(self, menu_items: dict[str, tuple[str, MenuItem]], menu_item_id: str) -> tuple[str, MenuItem]:
+    def _find_orderable_menu_item(self, menu_items: dict[str, tuple[str, MenuItem]], menu_item_id: str,) -> tuple[str, MenuItem]:
         if menu_item_id not in menu_items:
             raise MenuItemNotFoundError(f"Menu item with id '{menu_item_id}' is not found")
 
         restaurant_id, menu_item = menu_items[menu_item_id]
-        if self._in_stock_offer(menu_item) is None:
+
+        if find_in_stock_offer(menu_item) is None:
             raise MenuItemUnavailableError(f"'{menu_item.name}' is not available right now")
 
         return restaurant_id, menu_item

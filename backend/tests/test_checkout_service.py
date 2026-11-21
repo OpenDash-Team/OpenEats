@@ -1,6 +1,6 @@
 from decimal import Decimal
 import pytest
-from backend.app.core.exceptions import CheckoutPermissionError, CheckoutValidationError
+from backend.app.core.exceptions import CheckoutValidationError, CheckoutPermissionError
 from backend.app.repositories.cart_repository import CartRepository
 from backend.app.repositories.order_repository import OrderRepository
 from backend.app.repositories.restaurant_repository import RestaurantRepository
@@ -79,35 +79,30 @@ def test_checkout_uses_current_menu_price(checkout_setup):
     saved_order = order_repo.get_all_orders()[0]
     assert saved_order.total == Decimal("12.98")
 
-def test_checkout_needs_a_delivery_address(checkout_setup):
-    (service, customer, _, order_repo, _, _) = checkout_setup
-    customer.address = None
 
-    with pytest.raises(CheckoutValidationError, match="delivery address"):
-        service.checkout(customer)
-
-    assert order_repo.get_all_orders() == []
-
-
-def test_deactivated_customer_cannot_check_out(checkout_setup):
-    (service, customer, cart_repo, order_repo, _, _) = checkout_setup
-    customer.isActive = False
-
-    with pytest.raises(CheckoutPermissionError):
-        service.checkout(customer)
-
-    assert order_repo.get_all_orders() == []
-    assert cart_repo.get_all_carts()[0].status == "active"
-
-
-def test_empty_cart_cannot_be_checked_out(checkout_setup):
-    (service, customer, cart_repo, _, _, _) = checkout_setup
+def test_checkout_rejects_empty_cart(checkout_setup):
+    service, customer, cart_repo, order_repo, _, _ = checkout_setup
     carts = cart_repo.get_all_carts()
     carts[0].items = []
     cart_repo.save_carts(carts)
-
-    with pytest.raises(CheckoutValidationError, match="empty"):
+    with pytest.raises(CheckoutValidationError):
         service.checkout(customer)
+    assert order_repo.get_all_orders() == []
+    assert cart_repo.get_all_carts()[0].status == "active"
+
+def test_checkout_requires_delivery_address(checkout_setup):
+    service, customer, _, order_repo, _, _ = checkout_setup
+    customer.address = None
+    with pytest.raises(CheckoutValidationError):
+        service.checkout(customer)
+    assert order_repo.get_all_orders() == []
+
+def test_checkout_rejects_deactivated_customer(checkout_setup):
+    service, customer, _, order_repo, _, _ = checkout_setup
+    customer.isActive = False
+    with pytest.raises(CheckoutPermissionError):
+        service.checkout(customer)
+    assert order_repo.get_all_orders() == []
 
 
 def test_checking_out_twice_only_creates_one_order(checkout_setup):

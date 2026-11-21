@@ -1,10 +1,10 @@
 from ..core.exceptions import CheckoutValidationError, CheckoutPermissionError
 from ..repositories.cart_repository import CartRepository
 from ..repositories.order_repository import OrderRepository
-from ..services.cart_service import CartService
 from ..services.restaurant_service import RestaurantService
 from ..schemas.customer import Customer
 from ..schemas.order import Order, OrderItem
+from .cart_pricing import CartPricingError, price_cart
 
 class CheckoutService:
     def __init__(
@@ -16,8 +16,6 @@ class CheckoutService:
         self.cart_repository = cart_repository
         self.order_repository = order_repository
         self.restaurant_service = restaurant_service
-        # prices come from the same code the cart uses, so checkout and cart totals can't differ
-        self.cart_service = CartService(cart_repository, restaurant_service)
 
     def checkout(self, customer: Customer) -> Order:
 
@@ -33,7 +31,7 @@ class CheckoutService:
 
         with self.cart_repository.lock(): # lock the cart during the checkout operation.
             carts = self.cart_repository.get_all_carts()
-            cart = next((c for c in carts if c.customerId == customer.id and c.status == "active"), None)
+            cart = self.cart_repository.find_active_cart(carts, customer.id,)
 
             if cart is None:
                 raise CheckoutValidationError("No active cart found")
@@ -41,45 +39,75 @@ class CheckoutService:
             # lock orders while checking and saving
             with self.order_repository.lock():
                 # Recovery if an earlier attempt saved the order but failed to close the cart
-                existing_order = self.order_repository.get_order_by_cart_id(cart.id)
+                existing_order = (self.order_repository.get_order_by_cart_id(cart.id))
 
                 if existing_order is not None:
                     cart.status = "checkedOut"
                     self.cart_repository.save_carts(carts)
                     return existing_order
 
+                # validate the cart
                 if not cart.items:
                     raise CheckoutValidationError("Cannot check out an empty cart")
 
-                # revalidate availability and prices with the current menu
-                priced_cart = self.cart_service.price_cart(cart, self.restaurant_service.menu_items_by_id())
+                if not cart.restaurantId:
+                    raise CheckoutValidationError("Cart has no restaurant")
+
+                restaurant = (self.restaurant_service.get_restaurant_by_id(cart.restaurantId))
+
+                if restaurant is None:
+                    raise CheckoutValidationError("Restaurant no longer exists")
+
+
+                menu_items = self.restaurant_service.menu_items_by_id() # retrieve current menu information
+
+                # now it calculates prices using the same implementation as CartService
+                try:
+                    priced_cart = price_cart(cart, menu_items, strict=True,)
+                except CartPricingError as e:
+                    raise CheckoutValidationError(str(e)) from e
+
+                order_items = []
 
                 for item in priced_cart.items:
-                    if item.name is None:
-                        raise CheckoutValidationError(f"Menu item '{item.menuItemId}' no longer exists")
-                    if not item.available:
-                        raise CheckoutValidationError(f"'{item.name}' is unavailable")
+                    assert item.name is not None
+                    assert item.unitPrice is not None
+
+                    order_items.append(
+                        OrderItem(
+                            menuItemId=item.menuItemId,
+                            name=item.name,
+                            quantity=item.quantity,
+                            unitPrice=item.unitPrice,
+                            lineTotal=item.lineTotal,
+                        )
+                    )
+
+                subtotal = priced_cart.subtotal
+                total = priced_cart.total
+                currency = priced_cart.currency
+
+                assert currency is not None
 
                 new_order = Order(
                     customerId=customer.id,
                     restaurantId=cart.restaurantId,
                     cartId=cart.id,
-                    items=[
-                        OrderItem(menuItemId=item.menuItemId, name=item.name, quantity=item.quantity, unitPrice=item.unitPrice, lineTotal=item.lineTotal)
-                        for item in priced_cart.items
-                    ],
-                    currency=priced_cart.currency,
-                    subtotal=priced_cart.subtotal,
-                    total=priced_cart.total,
+                    items=order_items,
+                    currency=currency,
+                    subtotal=subtotal,
+                    total=total,
                     deliveryAddress=customer.address,
                 )
 
                 # persist the order first
                 orders = self.order_repository.get_all_orders()
                 orders.append(new_order)
+
                 self.order_repository.save_orders(orders)
 
-                # close the cart only after the order is saved
+                # only lose the cart only after successful
                 cart.status = "checkedOut"
                 self.cart_repository.save_carts(carts)
                 return new_order
+            
