@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Form } from 'react-bootstrap'
+import { Button, Col, Form, Row } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import AuthPageLayout from '../components/shared/AuthPageLayout'
 import PasswordField from '../components/shared/PasswordField'
@@ -20,21 +20,37 @@ const RegisterPage = () => {
     }
 
     return (
-        <AuthPageLayout title="Register">
+        <AuthPageLayout title="Register" maxWidth="640px">
             <Form onSubmit={onSubmit}>
-                <Form.Group className="d-flex flex-column mb-3 gap-1" controlId="registerName">
-                    <Form.Label className="fs-7 mb-0">Name</Form.Label>
-                    <Form.Control type="text" name="name" required placeholder="John Doe" autoComplete="name" className="fs-7 bg-dark" />
-                </Form.Group>
+                <Row>
+                    <Col sm={6}>
+                        <Form.Group className="d-flex flex-column mb-3 gap-1" controlId="registerEmail">
+                            <Form.Label className="fs-7 mb-0">Email</Form.Label>
+                            <Form.Control type="email" name="email" required placeholder="you@example.com" autoComplete="email" className="fs-7 bg-dark" />
+                        </Form.Group>
 
-                <Form.Group className="d-flex flex-column mb-3 gap-1" controlId="registerEmail">
-                    <Form.Label className="fs-7 mb-0">Email</Form.Label>
-                    <Form.Control type="email" name="email" required placeholder="you@example.com" autoComplete="email" className="fs-7 bg-dark" />
-                </Form.Group>
+                        <PasswordField name="password" label="Password" autoComplete="new-password" />
 
-                <PasswordField name="password" label="Password" autoComplete="new-password" />
+                        <PasswordField name="confirmPassword" label="Confirm Password" autoComplete="new-password" />
+                    </Col>
 
-                <PasswordField name="confirmPassword" label="Confirm Password" autoComplete="new-password" />
+                    <Col sm={6}>
+                        <Form.Group className="d-flex flex-column mb-3 gap-1" controlId="registerName">
+                            <Form.Label className="fs-7 mb-0">Name</Form.Label>
+                            <Form.Control type="text" name="name" required placeholder="John Doe" autoComplete="name" className="fs-7 bg-dark" />
+                        </Form.Group>
+
+                        <Form.Group className="d-flex flex-column mb-3 gap-1" controlId="registerPhone">
+                            <Form.Label className="fs-7 mb-0">Telephone</Form.Label>
+                            <Form.Control type="tel" name="telephone" placeholder="+1 (234) 567-8900" autoComplete="tel" className="fs-7 bg-dark" />
+                        </Form.Group>
+
+                        <Form.Group className="d-flex flex-column mb-3 gap-1" controlId="registerAddress">
+                            <Form.Label className="fs-7 mb-0">Address</Form.Label>
+                            <Form.Control type="text" name="address" placeholder="123 Main Street" autoComplete="street-address" className="fs-7 bg-dark" />
+                        </Form.Group>
+                    </Col>
+                </Row>
 
                 <Button variant="light" type="submit" className="w-100 fs-7 fw-medium">Create Account</Button>
                 { message && <p role="status" className="text-secondary-emphasis fs-7 mt-3 mb-0">{message}</p> }

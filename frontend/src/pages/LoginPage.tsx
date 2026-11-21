@@ -19,7 +19,11 @@ const LoginPage = () => {
 
     const onSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setSubmitted(true);
+        //setSubmitted(true);
+
+        localStorage.setItem("userMode", (email === "customer@openeats.com") ? "customer" : "restaurant");
+        localStorage.setItem("restaurantId", "");
+        window.location.replace("/")
     }
 
     const demoAccounts: DemoAccount[] = [
@@ -43,7 +47,7 @@ const LoginPage = () => {
                 <PasswordField name="password" label="Password" autoComplete="current-password" value={password} onChange={setPassword} />
 
                 <Button variant="light" type="submit" className="w-100 fs-7 fw-medium">Login</Button>
-                { submitted && <p role="status" className="text-secondary-emphasis fs-7 mt-3 mb-0">Sign in is not connected yet.</p> }
+                { submitted && <p role="status" className="text-danger-emphasis fs-7 mt-3 mb-0">Sign in is not connected yet.</p> }
             </Form>
 
             <p className="text-center text-secondary-emphasis fs-7 mt-3 mb-0">Don't have an account? <Link to="/register" className="text-body">Register</Link></p>

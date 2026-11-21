@@ -1,6 +1,6 @@
+import { Navigate } from "react-router-dom"
 import CreateRestaurantPage from "./CreateRestaurantPage"
 import DiscoverPage from "./DiscoverPage"
-import MockStartupPage from "./MockStartupPage"
 import RestaurantManagementPage from "./RestaurantManagementPage"
 import RestaurantSelectPage from "./RestaurantSelectPage"
 
@@ -25,7 +25,7 @@ const IndexPage = () => {
     }
 
     else {
-        return <MockStartupPage />
+        return <Navigate to="/login" replace />
     }
 }
 
