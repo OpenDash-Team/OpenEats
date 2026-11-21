@@ -87,8 +87,6 @@ def sign_in_as():
         return TestClient(app)
 
     return make_client
-
-
 @pytest.fixture
 def owner_client(sign_in_as):
     return sign_in_as(OWNER_ID)

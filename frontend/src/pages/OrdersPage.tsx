@@ -1,22 +1,33 @@
+import { useEffect, useState } from 'react'
 import { Container } from 'react-bootstrap'
 import OrderCard from '../components/orders_page/OrderCard'
 import UserPageLayout from '../components/shared/UserPageLayout'
-
-type Order = {
-    id: string;
-    restaurant: string;
-    date: string;
-    status: string;
-    items: string[];
-    total: number;
-}
+import { fetchOrders } from '../api/fetchOrders'
+import { fetchRestaurants } from '../api/fetchRestaurants'
 
 const OrdersPage = () => {
-    const orders: Order[] = [
-        { id: '1', restaurant: 'The Burger House', date: 'November 18, 2026', status: 'Delivered', items: ['Cheeseburger', 'French Fries'], total: 20.98 },
-        { id: '2', restaurant: 'Pasta Kitchen', date: 'November 12, 2026', status: 'Delivered', items: ['Penne Alfredo', 'Garlic Bread'], total: 23.98 },
-        { id: '3', restaurant: 'Pizza Corner', date: 'November 5, 2026', status: 'Delivered', items: ['Pepperoni Pizza'], total: 18.99 },
-    ];
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        let active = true;
+
+        fetchOrders().then((result) => {
+            if (active) setOrders(result);
+        }).catch((cause) => {
+            if (active) setError(cause instanceof Error && cause.message ? cause.message : 'Could not load orders.');
+        }).finally(() => {
+            if (active) setLoading(false);
+        });
+
+        fetchRestaurants().then((result) => {
+            if (active) setRestaurants(result);
+        }).catch(() => {});
+
+        return () => { active = false; };
+    }, []);
 
     return (
         <UserPageLayout className="gap-4">
@@ -26,21 +37,24 @@ const OrdersPage = () => {
             </Container>
 
             <Container className="d-flex flex-column gap-3">
+                    { loading && <p className="text-secondary-emphasis">Loading...</p> }
+                    { error && <p role="alert" className="text-danger">{error}</p> }
                     {
                         orders.map(
                             (order) =>
                             <OrderCard
                                 key={order.id}
-                                restaurant={order.restaurant}
-                                date={order.date}
+                                restaurant={restaurants.find((restaurant) => restaurant.id === order.restaurantId)?.name ?? 'Restaurant unavailable'}
+                                date={new Date(order.createdAt).toLocaleDateString()}
                                 status={order.status}
-                                items={order.items}
+                                items={order.items.map((item) => `${item.quantity} × ${item.name}`)}
                                 total={order.total}
+                                currency={order.currency}
                             />
                         )
                     }
 
-                    { (orders.length === 0) &&
+                    { (!loading && !error && orders.length === 0) &&
                         <p className="text-secondary-emphasis">You have no orders yet.</p>
                     }
             </Container>

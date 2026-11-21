@@ -5,7 +5,8 @@ interface OrderCardProps {
     date: string;
     status: string;
     items: string[];
-    total: number;
+    total: string;
+    currency: string;
 }
 
 const OrderCard = (props: OrderCardProps) => {
@@ -22,7 +23,7 @@ const OrderCard = (props: OrderCardProps) => {
 
                 <div className="d-flex justify-content-between gap-3 fs-7">
                     <span className="text-secondary-emphasis">{props.items.join(', ')}</span>
-                    <span className="fw-bold">${props.total.toFixed(2)}</span>
+                    <span className="fw-bold">{props.total} {props.currency}</span>
                 </div>
             </Card.Body>
         </Card>
