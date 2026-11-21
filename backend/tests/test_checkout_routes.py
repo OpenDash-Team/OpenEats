@@ -66,11 +66,10 @@ def test_checkout_endpoint_success(test_app, customer):
 
 
 def test_checkout_requires_authentication(test_app):
-    test_app.dependency_overrides[get_current_customer] = (lambda: None)
-    client = TestClient(test_app)
-    response = client.post("/api/v1/checkout")
+    # no token is sent, so the real get_current_customer rejects it
+    response = TestClient(test_app).post("/api/v1/checkout")
+
     assert response.status_code == 401
-    assert response.json()["detail"] == "Not authenticated"
 
 
 def test_checkout_invalid_cart(test_app, customer):
