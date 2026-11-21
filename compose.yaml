@@ -2,8 +2,8 @@ services:
   app:
     build: .
     container_name: openeats
-    env_file:
-      - .env.docker
+    environment:
+      JWT_SECRET_KEY: "openeats-local-testing-secret-key-12345"
     ports:
       - "8000:8000"
     volumes:

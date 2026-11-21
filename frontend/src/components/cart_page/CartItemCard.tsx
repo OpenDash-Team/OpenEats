@@ -2,9 +2,11 @@ import { Button, Card } from 'react-bootstrap'
 
 interface CartItemCardProps {
     name: string;
-    description: string;
-    price: number;
+    lineTotal: string;
+    currency: string | null;
     quantity: number;
+    available: boolean;
+    busy: boolean;
     onDecrease: () => void;
     onIncrease: () => void;
     onRemove: () => void;
@@ -17,17 +19,17 @@ const CartItemCard = (props: CartItemCardProps) => {
                 <div className="d-flex justify-content-between gap-3 mb-3">
                     <div>
                         <Card.Title className="fs-6 fw-bold">{props.name}</Card.Title>
-                        <Card.Text className="fs-8 text-secondary-emphasis">{props.description}</Card.Text>
+                        { !props.available && <Card.Text className="fs-8 text-secondary-emphasis">Unavailable</Card.Text> }
                     </div>
-                    <span className="fs-7 fw-bold">${(props.price * props.quantity).toFixed(2)}</span>
+                    <span className="fs-7 fw-bold">{props.lineTotal} {props.currency}</span>
                 </div>
                 <div className="d-flex align-items-center">
                     <div className="d-flex align-items-center gap-3 border border-secondary border-2 rounded-5">
-                        <Button variant="transparent" size="sm" aria-label={`Decrease ${props.name} quantity`} onClick={props.onDecrease}>−</Button>
+                        <Button variant="transparent" size="sm" aria-label={`Decrease ${props.name} quantity`} disabled={props.busy} onClick={props.onDecrease}>−</Button>
                         <span className="fs-7">{props.quantity}</span>
-                        <Button variant="transparent" size="sm" aria-label={`Increase ${props.name} quantity`} onClick={props.onIncrease}>+</Button>
+                        <Button variant="transparent" size="sm" aria-label={`Increase ${props.name} quantity`} disabled={props.busy || !props.available} onClick={props.onIncrease}>+</Button>
                     </div>
-                    <Button variant="link" className="fs-7 text-danger ms-auto" onClick={props.onRemove}>Remove</Button>
+                    <Button variant="link" className="fs-7 text-danger ms-auto" disabled={props.busy} onClick={props.onRemove}>Remove</Button>
                 </div>
             </Card.Body>
         </Card>

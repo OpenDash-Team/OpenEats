@@ -1,41 +1,67 @@
-import { useState } from 'react'
-import { Button, Col, Container, Row } from 'react-bootstrap'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Button, Card, Col, Container, Row } from 'react-bootstrap'
 import CartItemCard from '../components/cart_page/CartItemCard'
 import CartSummary from '../components/cart_page/CartSummary'
 import UserPageLayout from '../components/shared/UserPageLayout'
-
-type CartItem = {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    quantity: number;
-}
+import { fetchCart } from '../api/fetchCart'
+import { updateCartItem } from '../api/updateCartItem'
+import { removeCartItem } from '../api/removeCartItem'
+import { clearCart } from '../api/clearCart'
+import { checkout } from '../api/checkout'
 
 const CartPage = () => {
-    const navigate = useNavigate();
-    const [items, setItems] = useState<CartItem[]>([
-        { id: "1", name: 'Cheeseburger', description: 'Beef patty, cheddar, lettuce and tomato', price: 14.99, quantity: 1 },
-        { id: "2", name: 'French Fries', description: 'Crispy fries with sea salt', price: 5.99, quantity: 2 },
-        { id: "3", name: 'Chocolate Milkshake', description: 'Creamy chocolate milkshake', price: 6.99, quantity: 1 },
-    ]);
-    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const [cart, setCart] = useState<Cart | null>(null);
+    const [order, setOrder] = useState<Order | null>(null);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [busy, setBusy] = useState(false);
 
-    const updateQuantity = (itemId: string, change: number) => {
-        const updated = [...items];
+    useEffect(() => {
+        let active = true;
 
-        for (const item of updated) {
-            if (item.id === itemId) {
-                item.quantity = Math.max(1, item.quantity + change);
-            }
+        fetchCart().then((result) => {
+            if (active) setCart(result);
+        }).catch((cause) => {
+            if (active) setError(cause instanceof Error && cause.message ? cause.message : 'Could not load cart.');
+        }).finally(() => {
+            if (active) setLoading(false);
+        });
+
+        return () => { active = false; };
+    }, []);
+
+    const updateCart = async (action: () => Promise<Cart>) => {
+        if (busy) return;
+        setBusy(true);
+        setError('');
+
+        try {
+            setCart(await action());
+        } catch (cause) {
+            setError(cause instanceof Error && cause.message ? cause.message : 'Could not update cart.');
+        } finally {
+            setBusy(false);
         }
-
-        setItems(updated);
     }
 
-    const onRemove = (itemId: string) => {
-        setItems((current) => current.filter((item) => item.id !== itemId))
+    const updateQuantity = (item: CartItem, change: number) => {
+        const quantity = Math.max(1, Math.min(99, item.quantity + change));
+        if (quantity !== item.quantity) void updateCart(() => updateCartItem(item.menuItemId, quantity));
+    }
+
+    const onCheckout = async () => {
+        if (busy) return;
+        setBusy(true);
+        setError('');
+
+        try {
+            setOrder(await checkout());
+            setCart(null);
+        } catch (cause) {
+            setError(cause instanceof Error && cause.message ? cause.message : 'Could not check out.');
+        } finally {
+            setBusy(false);
+        }
     }
 
     return (
@@ -46,33 +72,53 @@ const CartPage = () => {
             </Container>
 
             <Container>
-                <Row className="g-4">
-                    <Col md={8} className="d-flex flex-column gap-3">
-                        {
-                            items.map(
-                                (item) => 
-                                <CartItemCard 
-                                    key={item.id} 
-                                    name={item.name} 
-                                    description={item.description} 
-                                    price={item.price} 
-                                    quantity={item.quantity} 
-                                    onDecrease={() => updateQuantity(item.id, -1)} 
-                                    onIncrease={() => updateQuantity(item.id, 1)} 
-                                    onRemove={() => onRemove(item.id)} 
-                                />
-                            )
-                        }
+                { loading && <p className="text-secondary-emphasis">Loading...</p> }
+                { error && <p role="alert" className="text-danger">{error}</p> }
+                { order &&
+                    <Card>
+                        <Card.Body>
+                            <Card.Title className="fs-6 fw-bold">Order placed</Card.Title>
+                            <Card.Text className="fs-7 text-secondary-emphasis">Order {order.id}</Card.Text>
+                            {order.items.map((item) => <p key={item.menuItemId} className="fs-7 mb-1">{item.quantity} × {item.name} — {item.lineTotal} {order.currency}</p>)}
+                            <p className="fs-7 mt-3 mb-1">Total: {order.total} {order.currency}</p>
+                            <p className="fs-7 mb-0">Delivery address: {order.deliveryAddress}</p>
+                        </Card.Body>
+                    </Card>
+                }
+                { cart &&
+                    <Row className="g-4">
+                        <Col md={8} className="d-flex flex-column gap-3">
+                            {
+                                cart.items.map(
+                                    (item) =>
+                                    <CartItemCard
+                                        key={item.menuItemId}
+                                        name={item.name ?? 'Item no longer available'}
+                                        lineTotal={item.lineTotal}
+                                        currency={cart.currency}
+                                        quantity={item.quantity}
+                                        available={item.available}
+                                        busy={busy}
+                                        onDecrease={() => updateQuantity(item, -1)}
+                                        onIncrease={() => updateQuantity(item, 1)}
+                                        onRemove={() => updateCart(() => removeCartItem(item.menuItemId))}
+                                    />
+                                )
+                            }
 
-                        { (items.length === 0) && 
-                            <p className="text-secondary-emphasis">Your cart is empty.</p> 
-                        }
-                    </Col>
+                            { (cart.items.length === 0) &&
+                                <p className="text-secondary-emphasis">Your cart is empty.</p>
+                            }
+                            { (cart.items.length > 0) &&
+                                <Button variant="outline-danger" className="fs-7 align-self-start" disabled={busy} onClick={() => updateCart(clearCart)}>Clear Cart</Button>
+                            }
+                        </Col>
 
-                    <Col md={4}>
-                        <CartSummary total={total} onCheckout={() => console.log("Checkout")} />
-                    </Col>
-                </Row>
+                        <Col md={4}>
+                            <CartSummary subtotal={cart.subtotal} total={cart.total} currency={cart.currency} disabled={busy || cart.items.length === 0 || cart.items.some((item) => !item.available)} onCheckout={onCheckout} />
+                        </Col>
+                    </Row>
+                }
             </Container>
         </UserPageLayout>
     )

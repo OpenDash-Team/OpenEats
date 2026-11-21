@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Button, Form } from 'react-bootstrap'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import AuthPageLayout from '../components/shared/AuthPageLayout'
 import PasswordField from '../components/shared/PasswordField'
+import useLoggedIn from '../hooks/useLoggedIn'
+import { login } from '../api/login'
+import { fetchCustomer } from '../api/fetchCustomer'
 
 import "./LoginPage.css";
 
@@ -13,17 +16,28 @@ type DemoAccount = {
 }
 
 const LoginPage = () => {
+    const loginStatus = useLoggedIn();
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("");
-    const [submitted, setSubmitted] = useState(false);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        //setSubmitted(true);
+        setError('');
+        setLoading(true);
 
-        localStorage.setItem("userMode", (email === "customer@openeats.com") ? "customer" : "restaurant");
-        localStorage.setItem("restaurantId", "");
-        window.location.replace("/")
+        try {
+            await login({ email, password });
+            const customer = await fetchCustomer();
+            console.log(customer);
+            localStorage.setItem("userMode", customer.role === "owner" ? "restaurant" : "customer");
+            localStorage.setItem("restaurantId", "");
+            window.location.replace("/");
+        } catch (cause) {
+            setError((cause instanceof Error && cause.message) ? cause.message : "Could not sign in.")
+            setLoading(false);
+        }
     }
 
     const demoAccounts: DemoAccount[] = [
@@ -36,6 +50,10 @@ const LoginPage = () => {
         setPassword(account.password);
     }
 
+    if (loginStatus === 'checking') return <p>Loading...</p>;
+    if (loginStatus === 'error') return <p role="alert">Could not check your session. Please try again.</p>;
+    if (loginStatus === 'loggedIn') return <Navigate to="/" replace />;
+
     return (
         <AuthPageLayout title="Login">
             <Form onSubmit={onSubmit}>
@@ -46,8 +64,8 @@ const LoginPage = () => {
 
                 <PasswordField name="password" label="Password" autoComplete="current-password" value={password} onChange={setPassword} />
 
-                <Button variant="light" type="submit" className="w-100 fs-7 fw-medium">Login</Button>
-                { submitted && <p role="status" className="text-danger-emphasis fs-7 mt-3 mb-0">Sign in is not connected yet.</p> }
+                <Button variant="light" type="submit" className="w-100 fs-7 fw-medium" disabled={loading}>{loading ? "Signing in..." : "Login"}</Button>
+                { error && <p role="alert" className="text-danger-emphasis fs-7 mt-3 mb-0">{error}</p> }
             </Form>
 
             <p className="text-center text-secondary-emphasis fs-7 mt-3 mb-0">Don't have an account? <Link to="/register" className="text-body">Register</Link></p>
@@ -60,6 +78,8 @@ const LoginPage = () => {
                     demoAccounts.map(
                         (account) => 
                         <Button 
+                            key={account.email}
+                            type="button"
                             variant="transparent" 
                             className="text-primary-emphasis fs-7 demo-account"
                             onClick={() => selectDemoAccount(account)}

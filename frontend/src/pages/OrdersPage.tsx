@@ -1,4 +1,4 @@
-import { Col, Container, Row } from 'react-bootstrap'
+import { Container } from 'react-bootstrap'
 import OrderCard from '../components/orders_page/OrderCard'
 import UserPageLayout from '../components/shared/UserPageLayout'
 

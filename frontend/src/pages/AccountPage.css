@@ -1,0 +1,4 @@
+.account-input:disabled {
+    background-color: #343a40;
+    color: #999;
+}
